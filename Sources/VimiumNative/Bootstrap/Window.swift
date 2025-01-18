@@ -190,32 +190,25 @@ class Window {
   func listAll() {
     guard
       let chrome =
-        (NSWorkspace.shared.frontmostApplication
-          ?? NSWorkspace.shared.runningApplications.filter {
-            $0.bundleIdentifier == "com.google.Chrome.helper.plugin"
+        (
+          // NSWorkspace.shared.frontmostApplication ??
+          NSWorkspace.shared.runningApplications.filter {
+            $0.bundleIdentifier == "com.google.Chrome"
           }.first)
     else {
+      print("Guard")
       return
     }
     // for app in NSWorkspace.shared.runningApplications {
     // print("\(app.description) \(app.bundleIdentifier)")
     // }
 
-    // print("Trusted \(AXIsProcessTrusted())")
-    //
-    // if !AXIsProcessTrusted() {
-    //   NSWorkspace.shared.open(
-    //     URL(
-    //       string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
-    // }
-
-    for el in fetchInteractiveElements(for: chrome) {
+    let els = fetchInteractiveElements(for: chrome)
+    print("Found \(els.count)")
+    for el in els {
       if let point = getPoint(el: el), let content = toString(el: el) {
         renderOnTop(point: point, content: content)
       }
-      // print(
-      //   "\((toString(el: el) ?? "Unkown")) \(el), x \(getPoint(el: el)?.x ?? -1), y \(getPoint(el: el)?.y ?? -1)"
-      // )
     }
 
     // print("App: \(app)")

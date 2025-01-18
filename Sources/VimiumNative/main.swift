@@ -5,11 +5,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   var badge: TrayBadge?
   let window = Window()
   let system = System()
-  var view = SettingsView(onMount: {})
+  var view = SettingsView(action: {})
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     system.pipeOutput()
-    view = SettingsView(onMount: window.listAll)
+    view = SettingsView(action: window.listAll)
     system.attachMenu(quit: #selector(quit), close: #selector(close))
     badge = TrayBadge(onOpen: #selector(open), onQuit: #selector(quit))
     window.open(view: view)
