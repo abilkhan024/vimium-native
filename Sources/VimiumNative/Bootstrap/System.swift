@@ -11,7 +11,7 @@ public class System {
     setbuf(stderr, nil)
   }
 
-  public func attachMenu(quit: Selector) {
+  public func attachMenu(quit: Selector, close: Selector) {
     let mainMenu = NSMenu()
 
     // Don't know why TF we need file, but without it it doesn't work
@@ -20,6 +20,7 @@ public class System {
     fileMenu.submenu = fileSubMenu
 
     fileSubMenu.addItem(NSMenuItem(title: "Quit", action: quit, keyEquivalent: "q"))
+    fileSubMenu.addItem(NSMenuItem(title: "Close", action: close, keyEquivalent: "w"))
     mainMenu.addItem(fileMenu)
 
     NSApplication.shared.mainMenu = mainMenu

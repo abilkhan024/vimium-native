@@ -1,28 +1,32 @@
-import ApplicationServices
 import Cocoa
-import CoreGraphics
-import Foundation
-import SwiftUI
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
   var badge: TrayBadge?
   let window = Window()
   let system = System()
+  var view = SettingsView(onMount: {})
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     system.pipeOutput()
-    system.attachMenu(quit: #selector(quitApp))
-    badge = TrayBadge(onOpen: #selector(openApp), onQuit: #selector(quitApp))
+    view = SettingsView(onMount: window.listAll)
+    system.attachMenu(quit: #selector(quit), close: #selector(close))
+    badge = TrayBadge(onOpen: #selector(open), onQuit: #selector(quit))
+    window.open(view: view)
   }
 
-  @objc private func openApp() {
-    window.open(view: SettingsView())
+  func applicationDidBecomeActive(_ notification: Notification) {
+    print("Did")
+    window.open(view: view)
   }
 
-  @objc private func quitApp() {
-    system.die()
+  func applicationWillResignActive(_ notification: Notification) {
+    print("Resign")
   }
+
+  @objc private func close() { window.close() }
+  @objc private func open() { window.open(view: view) }
+  @objc private func quit() { system.die() }
 }
 
 let delegate = AppDelegate()
