@@ -11,18 +11,13 @@ struct SettingsView: View {
   @State private var debugInfo: String = "Debug output"
 
   var body: some View {
-    let url = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
-
     VStack(
       spacing: 20,
       content: {
-        Text("Hello from SwiftUI")
+        Text(AppInfo.name)
           .foregroundColor(.blue)
         Text(debugInfo)
           .foregroundColor(.red)
-        Button(action: {
-          NSWorkspace.shared.open(URL(string: url)!)
-        }) { Text("Allow") }
         Button(action: {
           debugInfo = "Trusted \(AXIsProcessTrusted())"
         }) { Text("Debug") }

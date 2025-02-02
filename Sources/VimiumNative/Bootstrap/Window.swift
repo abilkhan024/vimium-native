@@ -37,7 +37,6 @@ class Window {
       height: window.frame.height
     )
     window.contentView?.addSubview(hostingView)
-    print("Render")
     window.makeKeyAndOrderFront(nil)
     return window
   }
@@ -71,13 +70,6 @@ class Window {
       backing: .buffered,
       defer: false
     )
-  }
-
-  private func renderOnTop(point: CGPoint, content: String) {
-    let _ = makeWindow(
-      view: Text(content).position(x: point.x, y: point.y).onAppear(perform: {
-        print("Appear")
-      }).foregroundColor(.red))
   }
 
   func fetchInteractiveElements(for runningApp: NSRunningApplication) -> [AXUIElement] {
@@ -118,28 +110,15 @@ class Window {
       for child in childrenArray {
         var role: CFTypeRef?
         AXUIElementCopyAttributeValue(child, kAXRoleAttribute as CFString, &role)
-        if let roleString = role as? String, isInteractiveRole(roleString) {
-          interactiveElements.append(child)
-        }
+        // if let roleString = role as? String, isInteractiveRole(roleString) {
+        //   interactiveElements.append(child)
+        // }
+        interactiveElements.append(child)
         // Recursively gather interactive elements
         interactiveElements.append(contentsOf: gatherInteractiveElements(from: child))
       }
 
       return interactiveElements
-    }
-
-    // Helper to determine if an element is interactive
-    func isInteractiveRole(_ role: String) -> Bool {
-      let interactiveRoles = [
-        kAXButtonRole,
-        kAXTextFieldRole,
-        kAXCheckBoxRole,
-        kAXRadioButtonRole,
-        kAXMenuItemRole,
-        kAXSliderRole,
-        kAXPopUpButtonRole,
-      ]
-      return interactiveRoles.contains(role)
     }
 
     // Collect interactive elements from all windows
@@ -188,82 +167,28 @@ class Window {
   }
 
   func listAll() {
-    guard
-      let chrome =
-        (
-          // NSWorkspace.shared.frontmostApplication ??
-          NSWorkspace.shared.runningApplications.filter {
-            $0.bundleIdentifier == "com.google.Chrome"
-          }.first)
+    guard let current = (NSWorkspace.shared.frontmostApplication)
     else {
-      print("Guard")
-      return
-    }
-    // for app in NSWorkspace.shared.runningApplications {
-    // print("\(app.description) \(app.bundleIdentifier)")
-    // }
-
-    let els = fetchInteractiveElements(for: chrome)
-    print("Found \(els.count)")
-    for el in els {
-      if let point = getPoint(el: el), let content = toString(el: el) {
-        renderOnTop(point: point, content: content)
-      }
+      return print("No current application running")
     }
 
-    // print("App: \(app)")
-    // guard let frontAppPID = NSWorkspace.shared.frontmostApplication?.processIdentifier else {
-    //   return
-    // }
-    // let appElement = AXUIElementCreateApplication(frontAppPID)
-    //
-    // var frontWindow: AXUIElement?
-    // var value: AnyObject?
-    //
-    // // Get the front-most window of the application
-    // if AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &value)
-    //   == .success
-    // {
-    //   frontWindow = (value as! AXUIElement)
-    // }
-    //
-    // // Get all UI elements (interactive elements) in the window
-    // var elements: CFTypeRef?
-    // if AXUIElementCopyAttributeValue(frontWindow!, kAXChildrenAttribute as CFString, &elements)
-    //   == .success
-    // {
-    //   guard let elementsArray = elements as? [AXUIElement] else { return }
-    //
-    //   for element in elementsArray {
-    //
-    //     var position: CFTypeRef?
-    //     var role: CFTypeRef?
-    //
-    //     if AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &position)
-    //       == .success
-    //       && AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &role)
-    //         == .success
-    //     {
-    //       let point = (position as! AXValue)
-    //       var x: CGFloat = 0
-    //       var y: CGFloat = 0
-    //       AXValueGetValue(point, .cgPoint, &x)
-    //       AXValueGetValue(point, .cgPoint, &y)
-    //       // , label \(role as? String ?? "Unknown")
-    //       print("Element \(element), position: (\(x), \(y))")
-    //     }
-    //   }
-    //   //   var roleValue: CFTypeRef?
-    //   //   if AXUIElementCopyAttributeValue(element, kAXRoleAttribute as CFString, &roleValue)
-    //   //     == .success,
-    //   //     let role = roleValue as? String
-    //   //   {
-    //   //     if role == "AXButton" {
-    //   //       print("Button Found")
-    //   //     } else if role == "AXTextField" {
-    //   //       print("Text Field Found")
-    //   //     }
-    //   //   }
-    //   // }
+    let hintsView = HintsView(
+      els: Array(fetchInteractiveElements(for: current).prefix(169)),
+      getPoint: self.getPoint,
+      toString: self.toString
+    )
+    let overlayWindow = makeWindow(view: hintsView)
+    var monitor: Any?
+    monitor = NSEvent.addGlobalMonitorForEvents(
+      matching: .keyDown,
+      handler: { (event) in
+        if !event.modifierFlags.contains([.command, .shift]) || event.keyCode != 43 {
+          return
+        }
+        overlayWindow.close()
+        if let mon = monitor {
+          NSEvent.removeMonitor(mon)
+        }
+      })
   }
 }

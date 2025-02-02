@@ -1,3 +1,3 @@
 public class AppInfo {
-    public static let name = "VimiumNative";
+  public static let name = "VimiumNative"
 }

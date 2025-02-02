@@ -11,8 +11,37 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     system.pipeOutput()
     view = SettingsView(action: window.listAll)
     system.attachMenu(quit: #selector(quit), close: #selector(close))
+    if !AXIsProcessTrusted() {
+      runTask(
+        path: "/usr/bin/tccutil",
+        args: ["reset", "Accessibility", "com.example.VimiumNative"]
+      ).waitUntilExit()
+      openA11y()
+    } else {
+      NSEvent.addGlobalMonitorForEvents(
+        matching: .keyDown,
+        handler: { (event) in
+          if !event.modifierFlags.contains([.command, .shift]) || event.keyCode != 47 {
+            return
+          }
+          self.window.listAll()
+        })
+    }
     badge = TrayBadge(onOpen: #selector(open), onQuit: #selector(quit))
     window.open(view: view)
+  }
+
+  func runTask(path: String, args: [String]?) -> Process {
+    let task = Process()
+    task.launchPath = path
+    task.arguments = args
+    task.launch()
+    return task
+  }
+
+  func openA11y() {
+    let url = "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility"
+    NSWorkspace.shared.open(URL(string: url)!)
   }
 
   func applicationDidBecomeActive(_ notification: Notification) {
