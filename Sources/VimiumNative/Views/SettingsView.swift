@@ -2,11 +2,7 @@ import Cocoa
 import SwiftUI
 
 struct SettingsView: View {
-  var action: () -> Void
-
-  init(action: @escaping () -> Void) {
-    self.action = action
-  }
+  @Binding var options: AppOptions
 
   @State private var debugInfo: String = "Debug output"
 
@@ -18,10 +14,10 @@ struct SettingsView: View {
           .foregroundColor(.blue)
         Text(debugInfo)
           .foregroundColor(.red)
+        Toggle(isOn: $options.interactiveOnly) { Text("Interactive only") }
         Button(action: {
           debugInfo = "Trusted \(AXIsProcessTrusted())"
         }) { Text("Debug") }
-        Button(action: action) { Text("Action").foregroundColor(.purple) }
       }
     )
   }

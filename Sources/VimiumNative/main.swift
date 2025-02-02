@@ -3,13 +3,12 @@ import Cocoa
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
   var badge: TrayBadge?
-  let window = Window()
+  let window = RootWindow()
   let system = System()
-  var view = SettingsView(action: {})
+  let appView = AppView()
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     system.pipeOutput()
-    view = SettingsView(action: window.listAll)
     system.attachMenu(quit: #selector(quit), close: #selector(close))
     if !AXIsProcessTrusted() {
       runTask(
@@ -17,18 +16,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         args: ["reset", "Accessibility", "com.example.VimiumNative"]
       ).waitUntilExit()
       openA11y()
-    } else {
-      NSEvent.addGlobalMonitorForEvents(
-        matching: .keyDown,
-        handler: { (event) in
-          if !event.modifierFlags.contains([.command, .shift]) || event.keyCode != 47 {
-            return
-          }
-          self.window.listAll()
-        })
+      return system.die()
     }
+
     badge = TrayBadge(onOpen: #selector(open), onQuit: #selector(quit))
-    window.open(view: view)
+    window.open(view: appView)
   }
 
   func runTask(path: String, args: [String]?) -> Process {
@@ -44,17 +36,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     NSWorkspace.shared.open(URL(string: url)!)
   }
 
-  func applicationDidBecomeActive(_ notification: Notification) {
-    print("Did")
-    window.open(view: view)
-  }
-
-  func applicationWillResignActive(_ notification: Notification) {
-    print("Resign")
-  }
-
   @objc private func close() { window.close() }
-  @objc private func open() { window.open(view: view) }
+  @objc private func open() { window.open(view: appView) }
   @objc private func quit() { system.die() }
 }
 
