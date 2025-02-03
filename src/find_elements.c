@@ -1,39 +1,42 @@
 #include <ApplicationServices/ApplicationServices.h>
-#include <CoreFoundation/CoreFoundation.h>
 #include <CoreFoundation/CFArray.h>
+#include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CGWindow.h>
 #include <CoreGraphics/CoreGraphics.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-AXUIElementRef *select_nested_axui_els(AXUIElementRef element, size_t *count) {
+/*
+AXUIElementRef *select_nested_axui_els(jXUIElementRef win, size_t *count) {
   *count = 0;
-  CFTypeRef childrenRef = NULL;
-  if (AXUIElementCopyAttributeValue(element, kAXChildrenAttribute,
-                                    &childrenRef) != kAXErrorSuccess) {
+  CFTypeRef children_ref = NULL;
+  if (AXUIElementCopyAttributeValue(win, kAXChildrenAttribute, &children_ref) !=
+      kAXErrorSuccess) {
     return NULL;
   }
 
-  CFArrayRef children = (CFArrayRef)childrenRef;
-  CFIndex childCount = CFArrayGetCount(children);
-  if (childCount == 0) {
+  CFArrayRef children = (CFArrayRef)children_ref;
+  CFIndex child_count = CFArrayGetCount(children);
+  if (child_count == 0) {
     CFRelease(children);
     return NULL;
   }
 
-  AXUIElementRef *elements = malloc(childCount * sizeof(AXUIElementRef));
-  for (CFIndex i = 0; i < childCount; i++) {
+printf("Asking bytes for malloc %lu\n", child_count * sizeof(AXUIElementRef));
+  AXUIElementRef *els = malloc(child_count * sizeof(rXUIElementRef));
+  for (CFIndex i = 0; i < child_count; i++) {
     AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
-    elements[*count] = child;
+    els[*count] = child;
     (*count)++;
 
     size_t subCount = 0;
     AXUIElementRef *subElements = select_nested_axui_els(child, &subCount);
     if (subElements) {
-      elements =
-          realloc(elements, (*count + subCount) * sizeof(AXUIElementRef));
-      for (size_t j = 0; j < subCount; j++) {
-        elements[*count + j] = subElements[j];
+printf("Asking bytes for realloc %lu\n",       (*count + subCount) *
+sizeof(AXUIElementRef)); els = realloc(els, (*count + subCount) *
+sizeof(AXUIElementRef)); for (size_t j = 0; j < subCount; j++) { els[*count + j]
+= subElements[j];
       }
       (*count) += subCount;
       free(subElements);
@@ -41,8 +44,9 @@ AXUIElementRef *select_nested_axui_els(AXUIElementRef element, size_t *count) {
   }
 
   CFRelease(children);
-  return elements;
+  return els;
 }
+*/
 
 char *axui_to_string(AXUIElementRef el) {
   CFTypeRef roleRef = NULL, titleRef = NULL;
@@ -73,12 +77,41 @@ char *axui_to_string(AXUIElementRef el) {
   return result;
 }
 
+/**
+ * @param els_count Expects to be set to 0 when calling on the window as parent
+ * @param els Chunk that will be populated by leaf elements until limit is
+ * reached, caller must ensure that there is space for at least `limit` elements
+ */
+void select_leaf_els(AXUIElementRef node, size_t *els_count,
+                     AXUIElementRef *els, size_t *limit) {
+  if (*els_count >= *limit) {
+    return;
+  }
+  CFTypeRef children_ref = NULL;
+  if (AXUIElementCopyAttributeValue(node, kAXChildrenAttribute,
+                                    &children_ref) != kAXErrorSuccess) {
+    return;
+  }
+
+  CFArrayRef children = (CFArrayRef)children_ref;
+  CFIndex child_count = CFArrayGetCount(children);
+
+  if (child_count == 0) {
+    els[*els_count] = node;
+    (*els_count)++;
+    return CFRelease(children);
+  }
+  for (CFIndex i = 0; i < child_count; i++) {
+    AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
+    select_leaf_els(child, els_count, els, limit);
+  }
+}
+
 AXUIElementRef *select_axui_els(pid_t pid, size_t *count) {
   *count = 0;
 
-  // Create accessibility object for application
   AXUIElementRef appElement = AXUIElementCreateApplication(pid);
-  if (!appElement) {
+  if (appElement == NULL) {
     printf("Failed to create AXUIElement for PID %d\n", pid);
     return NULL;
   }
@@ -95,78 +128,37 @@ AXUIElementRef *select_axui_els(pid_t pid, size_t *count) {
   }
 
   CFArrayRef windows = (CFArrayRef)windowsRef;
-  CFIndex windowCount = CFArrayGetCount(windows);
-  printf("%ld windows count %d\n", (long)windowCount, pid);
+  CFIndex win_count = CFArrayGetCount(windows);
+  printf("PID: %d, has %ld windows\n", pid, (long)win_count);
 
-  // Collect all interactive elements
-  size_t totalElements = 0;
+  size_t total_els = 0;
   AXUIElementRef *allElements = NULL;
 
-  for (CFIndex i = 0; i < windowCount; i++) {
+  for (CFIndex i = 0; i < win_count; i++) {
     AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
-    size_t windowElementsCount = 0;
-    AXUIElementRef *windowElements =
-        select_nested_axui_els(window, &windowElementsCount);
-
-    if (windowElements) {
-      allElements = realloc(allElements, (totalElements + windowElementsCount) *
-                                             sizeof(AXUIElementRef));
-      for (size_t j = 0; j < windowElementsCount; j++) {
-        allElements[totalElements + j] = windowElements[j];
-      }
-      totalElements += windowElementsCount;
-      free(windowElements);
+    size_t els_count = 0;
+    size_t els_limit = 2000;
+    AXUIElementRef *els = malloc(sizeof(AXUIElementRef) * els_limit);
+    select_leaf_els(window, &els_count, els, &els_limit);
+    total_els += els_count;
+    for (size_t i = 0; i < els_count; i++) {
+      char *desc = axui_to_string(els[i]);
+      printf("Element %zu: '%s'\n", i, desc);
+      free(desc);
     }
+    break;
   }
 
-  *count = totalElements;
+  *count = total_els;
   CFRelease(windows);
   CFRelease(appElement);
+  printf("PID: %d, elements %zu\n", pid, total_els);
 
   return allElements;
 }
 
-
-// Function to get PID of an app by bundle identifier
-pid_t getPidForBundleID(const char* bundleID) {
-    CFStringRef cfBundleID = CFStringCreateWithCString(NULL, bundleID, kCFStringEncodingUTF8);
-    if (!cfBundleID) return 0;
-
-    // Get a list of running applications
-    CFArrayRef appList = CFArrayCreateMutable(NULL, 0, &kCFTypeArrayCallBacks);
-    if (!appList) {
-        CFRelease(cfBundleID);
-        return 0;
-    }
-
-    // Fetch all running applications
-    CFArrayRef runningApps = LSCopyApplicationArrayInFrontToBackOrder();
-    if (!runningApps) {
-        CFRelease(cfBundleID);
-        CFRelease(appList);
-        return 0;
-    }
-
-    /* CFIndex count = CFArrayGetCount(runningApps); */
-    /* pid_t targetPid = 0; */
-    /**/
-    /* for (CFIndex i = 0; i < count; i++) { */
-    /*     LSApplicationRecordRef appRecord = (LSApplicationRecordRef)CFArrayGetValueAtIndex(runningApps, i); */
-    /*     CFStringRef appBundleID = LSApplicationRecordGetBundleIdentifier(appRecord); */
-    /**/
-    /*     if (appBundleID && CFStringCompare(appBundleID, cfBundleID, 0) == kCFCompareEqualTo) { */
-    /*         targetPid = LSApplicationRecordGetProcessID(appRecord); */
-    /*         break; */
-    /*     } */
-    /* } */
-    /**/
-    /* CFRelease(runningApps); */
-    /* CFRelease(cfBundleID); */
-    /* return targetPid; */
-}
 int current_window() {
-  /* getPidForBundl */
-
+  /*
   CFArrayRef apps = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,
                                                kCGNullWindowID);
   if (apps == NULL) {
@@ -180,6 +172,14 @@ int current_window() {
     CFRelease(apps);
     return 1;
   }
+   */
+
+  /* CFDictionaryRef windowInfo = */
+  /*     (CFDictionaryRef)CFArrayGetValueAtIndex(apps, i); */
+  size_t pid = 37587;
+  size_t els_count = 0;
+  printf("%zu %zu\n", pid, els_count);
+  AXUIElementRef *elements = select_axui_els(pid, &els_count);
 
   /*
   for (CFIndex i = 0; i < count; i++) {
