@@ -1,90 +1,99 @@
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CFArray.h>
+#include <CoreFoundation/CFBase.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreGraphics/CGWindow.h>
 #include <CoreGraphics/CoreGraphics.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-/*
-AXUIElementRef *select_nested_axui_els(jXUIElementRef win, size_t *count) {
-  *count = 0;
-  CFTypeRef children_ref = NULL;
-  if (AXUIElementCopyAttributeValue(win, kAXChildrenAttribute, &children_ref) !=
-      kAXErrorSuccess) {
-    return NULL;
+#define SPLIT ", "
+const char *split = SPLIT;
+const int split_len = sizeof(SPLIT);
+#undef SPLIT
+
+void axui_append_attr_val(AXUIElementRef el, CFStringRef attr, char **cur_str,
+                          size_t *cur_len) {
+  CFTypeRef attr_ref = NULL;
+  char *attr_val = NULL;
+
+  if (AXUIElementCopyAttributeValue(el, attr, &attr_ref) != kAXErrorSuccess) {
+    return;
   }
 
-  CFArrayRef children = (CFArrayRef)children_ref;
-  CFIndex child_count = CFArrayGetCount(children);
-  if (child_count == 0) {
-    CFRelease(children);
-    return NULL;
+  if (attr_ref == NULL) {
+    return;
   }
 
-printf("Asking bytes for malloc %lu\n", child_count * sizeof(AXUIElementRef));
-  AXUIElementRef *els = malloc(child_count * sizeof(rXUIElementRef));
-  for (CFIndex i = 0; i < child_count; i++) {
-    AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
-    els[*count] = child;
-    (*count)++;
-
-    size_t subCount = 0;
-    AXUIElementRef *subElements = select_nested_axui_els(child, &subCount);
-    if (subElements) {
-printf("Asking bytes for realloc %lu\n",       (*count + subCount) *
-sizeof(AXUIElementRef)); els = realloc(els, (*count + subCount) *
-sizeof(AXUIElementRef)); for (size_t j = 0; j < subCount; j++) { els[*count + j]
-= subElements[j];
-      }
-      (*count) += subCount;
-      free(subElements);
-    }
+  if (CFGetTypeID(attr_ref) != CFStringGetTypeID()) {
+    return CFRelease(attr_ref);
   }
 
-  CFRelease(children);
-  return els;
+  const size_t max_content = 1024 * 1024;
+  char buffer[max_content];
+  if (!CFStringGetCString(attr_ref, buffer, max_content,
+                          kCFStringEncodingUTF8)) {
+    return CFRelease(attr_ref);
+  }
+
+  attr_val = buffer;
+  CFRelease(attr_ref);
+  if (attr_val == NULL) {
+    return;
+  }
+
+  size_t attr_len = strlen(attr_val);
+  if (attr_len == 0) {
+    return;
+  }
+
+  bool need_split = *cur_len != 0;
+  size_t new_len = *cur_len + attr_len;
+  if (need_split) {
+    new_len += split_len;
+  }
+
+  (*cur_str) = realloc(*cur_str, new_len);
+
+  for (int i = 0; i < split_len - 1 && need_split; i++, (*cur_len)++) {
+    (*cur_str)[*cur_len] = split[i];
+  }
+
+  for (int i = 0; i < attr_len; i++, (*cur_len)++) {
+    (*cur_str)[*cur_len] = attr_val[i];
+  }
 }
-*/
+
+bool axui_role_with_value_attr(char *role) {
+  return (strcmp(role, "AXGroup") == 0) || (strcmp(role, "AXTabGroup") == 0) ||
+         (strcmp(role, "AXRadioButton") == 0);
+}
 
 char *axui_to_string(AXUIElementRef el) {
-  CFTypeRef roleRef = NULL, titleRef = NULL;
-  char *roleStr = NULL, *titleStr = NULL;
+  size_t len = 0;
+  char *str = NULL;
+  axui_append_attr_val(el, kAXRoleAttribute, &str, &len);
+  axui_append_attr_val(el, kAXTitleAttribute, &str, &len);
+  axui_append_attr_val(el, kAXLabelValueAttribute, &str, &len);
+  axui_append_attr_val(el, kAXValueAttribute, &str, &len);
+  axui_append_attr_val(el, kAXValueDescriptionAttribute, &str, &len);
 
-  if (AXUIElementCopyAttributeValue(el, kAXRoleAttribute, &roleRef) ==
-      kAXErrorSuccess) {
-    roleStr = (char *)CFStringGetCStringPtr((CFStringRef)roleRef,
-                                            kCFStringEncodingUTF8);
-  }
-  if (AXUIElementCopyAttributeValue(el, kAXTitleAttribute, &titleRef) ==
-      kAXErrorSuccess) {
-    titleStr = (char *)CFStringGetCStringPtr((CFStringRef)titleRef,
-                                             kCFStringEncodingUTF8);
-  }
+  /* axui_append_attr_val(el, kAXHelpAttribute, &str, &len); */
+  /* axui_append_attr_val(el, kAXDescriptionAttribute, &str, &len); */
+  /* axui_append_attr_val(el, kAXContentsAttribute, &str, &len); */
+  /* axui_append_attr_val(el, kAXSelectedTextAttribute, &str, &len); */
+  /* axui_append_attr_val(el, kAXVisibleCharacterRangeAttribute, &str, &len); */
 
-  size_t len =
-      (roleStr ? strlen(roleStr) : 0) + (titleStr ? strlen(titleStr) : 0) + 5;
-  char *result = malloc(len);
-  snprintf(result, len, "%s, %s", roleStr ? roleStr : "",
-           titleStr ? titleStr : "");
-
-  if (roleRef)
-    CFRelease(roleRef);
-  if (titleRef)
-    CFRelease(titleRef);
-
-  return result;
+  return str;
 }
 
-/**
- * @param els_count Expects to be set to 0 when calling on the window as parent
- * @param els Chunk that will be populated by leaf elements until limit is
- * reached, caller must ensure that there is space for at least `limit` elements
- */
-void select_leaf_els(AXUIElementRef node, size_t *els_count,
-                     AXUIElementRef *els, size_t *limit) {
-  if (*els_count >= *limit) {
+void axui_select_nested(AXUIElementRef node, AXUIElementRef *els,
+                        size_t *cur_els_count, const size_t *limit,
+                        CFTypeRef *children_ref_ptrs,
+                        size_t *children_ref_len) {
+  if (*cur_els_count >= *limit) {
     return;
   }
   CFTypeRef children_ref = NULL;
@@ -96,50 +105,61 @@ void select_leaf_els(AXUIElementRef node, size_t *els_count,
   CFArrayRef children = (CFArrayRef)children_ref;
   CFIndex child_count = CFArrayGetCount(children);
 
-  if (child_count == 0) {
-    els[*els_count] = node;
-    (*els_count)++;
-    return CFRelease(children);
-  }
+  els[*cur_els_count] = node;
+  (*cur_els_count)++;
+
   for (CFIndex i = 0; i < child_count; i++) {
     AXUIElementRef child = (AXUIElementRef)CFArrayGetValueAtIndex(children, i);
-    select_leaf_els(child, els_count, els, limit);
+    axui_select_nested(child, els, cur_els_count, limit, children_ref_ptrs,
+                       children_ref_len);
   }
+
+  children_ref_ptrs[(*children_ref_len)++] = children_ref;
 }
 
-AXUIElementRef *select_axui_els(pid_t pid, size_t *count) {
+AXUIElementRef *axui_list_from_process(pid_t pid, size_t *count) {
   *count = 0;
 
-  AXUIElementRef appElement = AXUIElementCreateApplication(pid);
-  if (appElement == NULL) {
+  AXUIElementRef app = AXUIElementCreateApplication(pid);
+  if (app == NULL) {
     printf("Failed to create AXUIElement for PID %d\n", pid);
     return NULL;
   }
 
-  // Get all windows
-  CFTypeRef windowsRef = NULL;
-  int result = AXUIElementCopyAttributeValue(appElement, kAXWindowsAttribute,
-                                             &windowsRef);
+  CFTypeRef windows_ref = NULL;
+  int result =
+      AXUIElementCopyAttributeValue(app, kAXWindowsAttribute, &windows_ref);
   if (result != kAXErrorSuccess) {
     printf("Failed to get windows for application PID: %d, with %d\n", pid,
            result);
-    CFRelease(appElement);
+    CFRelease(app);
     return NULL;
   }
 
-  CFArrayRef windows = (CFArrayRef)windowsRef;
+  CFArrayRef windows = (CFArrayRef)windows_ref;
   CFIndex win_count = CFArrayGetCount(windows);
   printf("PID: %d, has %ld windows\n", pid, (long)win_count);
 
   size_t total_els = 0;
-  AXUIElementRef *allElements = NULL;
+  size_t els_count = 0;
+
+  const size_t els_limit = 3000; // Don't know which value would be logical but
+                                 // setting to just arbitrarily large value
+
+  AXUIElementRef *els = malloc(sizeof(AXUIElementRef) * els_limit);
+  size_t children_ref_ptrs_len = 0;
+  CFTypeRef *children_ref_ptrs = malloc(sizeof(CFTypeRef) * els_limit);
+
+  if (els == NULL) {
+    printf("ERROR: Allocating vector for axui els");
+    abort();
+  }
 
   for (CFIndex i = 0; i < win_count; i++) {
+    printf("Window %ld\n", (long)i);
     AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
-    size_t els_count = 0;
-    size_t els_limit = 2000;
-    AXUIElementRef *els = malloc(sizeof(AXUIElementRef) * els_limit);
-    select_leaf_els(window, &els_count, els, &els_limit);
+    axui_select_nested(window, els, &els_count, &els_limit, children_ref_ptrs,
+                       &children_ref_ptrs_len);
     total_els += els_count;
     for (size_t i = 0; i < els_count; i++) {
       char *desc = axui_to_string(els[i]);
@@ -149,73 +169,32 @@ AXUIElementRef *select_axui_els(pid_t pid, size_t *count) {
     break;
   }
 
+  for (size_t i = 0; i < children_ref_ptrs_len; i++) {
+    CFRelease(children_ref_ptrs[i]);
+  }
+
   *count = total_els;
   CFRelease(windows);
-  CFRelease(appElement);
+  CFRelease(app);
+
   printf("PID: %d, elements %zu\n", pid, total_els);
 
-  return allElements;
+  return els;
 }
 
-int current_window() {
-  /*
-  CFArrayRef apps = CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly,
-                                               kCGNullWindowID);
-  if (apps == NULL) {
-    perror("ERROR: Failed to get front most application\n");
+int current_window(char *pid_str) {
+  int pid_int = atoi(pid_str);
+  if (pid_int <= 0) {
+    printf("Invalid PID %d when converting %s", pid_int, pid_str);
     return 1;
   }
-  CFIndex count = CFArrayGetCount(apps);
 
-  if (count == 0) {
-    perror("No active windows found.\n");
-    CFRelease(apps);
-    return 1;
-  }
-   */
-
-  /* CFDictionaryRef windowInfo = */
-  /*     (CFDictionaryRef)CFArrayGetValueAtIndex(apps, i); */
-  size_t pid = 37587;
+  size_t pid = pid_int;
   size_t els_count = 0;
-  printf("%zu %zu\n", pid, els_count);
-  AXUIElementRef *elements = select_axui_els(pid, &els_count);
-
-  /*
-  for (CFIndex i = 0; i < count; i++) {
-    CFDictionaryRef windowInfo =
-        (CFDictionaryRef)CFArrayGetValueAtIndex(apps, i);
-    CFNumberRef pidRef = CFDictionaryGetValue(windowInfo, kCGWindowOwnerPID);
-    if (!pidRef)
-      continue;
-
-    pid_t pid;
-    CFNumberGetValue(pidRef, kCFNumberIntType, &pid);
-
-    size_t els_count = 0;
-
-    printf("%d %zu\n", pid, els_count);
-    AXUIElementRef *elements = select_axui_els(pid, &els_count);
-
-    if (elements != NULL) {
-      printf("Found %zu interactive elements in PID %d:\n", els_count, pid);
-      for (size_t j = 0; j < els_count && j < 10; j++) {
-        char *desc = axui_to_string(elements[j]);
-        if (desc != NULL) {
-          printf("- %s\n", desc);
-          free(desc);
-        }
-      }
-      free(elements);
-    } else {
-      printf("Elements are NULL");
-    }
-    break; // Only process the first frontmost app
-  }
-
-  CFRelease(apps);
-
-  */
+  /** May be return ptr for custom struct instead, which will have fields like
+   * {role, content, etc.} */
+  AXUIElementRef *list = axui_list_from_process(pid, &els_count);
+  free(list);
 
   return 0;
 }

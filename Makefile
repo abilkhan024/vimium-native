@@ -1,6 +1,6 @@
 CXX := clang -framework ApplicationServices
-CXXFLAGS := -g -Og -Wall -Iinclude
-DEPFLAGS := -MMD -MP  # Generates .d files with dependencies
+CXXFLAGS := -g -Og -Wno-unused-command-line-argument -Wall -Iinclude -I/
+DEPFLAGS := -MMD -MP
 
 # Directories
 SRCDIR := src

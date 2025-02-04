@@ -1,1 +1,1 @@
-int current_window();
+int current_window(char *pid_str);
