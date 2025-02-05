@@ -3,7 +3,7 @@ import Cocoa
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
   func applicationDidFinishLaunching(_ notification: Notification) {
-    AppListeners().listen()
+    let _ = AppListeners()
   }
 }
 
