@@ -11,72 +11,64 @@ class ListElementsAction {
       return []
     }
 
-    // Create the accessibility object for the application
     let appElement = AXUIElementCreateApplication(pid)
 
-    // Get all windows of the application
-    var windows: CFTypeRef?
-    let result = AXUIElementCopyAttributeValue(
-      appElement, kAXWindowsAttribute as CFString, &windows)
+    var wins: CFTypeRef?
+    let winResult = AXUIElementCopyAttributeValue(
+      appElement, kAXWindowsAttribute as CFString, &wins)
 
-    guard result == .success, let windowsArray = windows as? [AXUIElement] else {
+    guard winResult == .success, let windowsArray = wins as? [AXUIElement] else {
       print(
-        "Failed to get windows for application: \(runningApp.localizedName ?? "Unknown App"), with result \(result)"
+        "Failed to get windows for application: \(runningApp.localizedName ?? "Unknown App"), with \(winResult)"
       )
       return []
     }
 
-    // Function to recursively gather interactive elements
-    func gatherInteractiveElements(from element: AXUIElement) -> [AXUIElement] {
-      var interactiveElements: [AXUIElement] = []
-
-      // Get child elements
-      var children: CFTypeRef?
-      let childResult = AXUIElementCopyAttributeValue(
-        element, kAXChildrenAttribute as CFString, &children)
-      guard childResult == .success, let childrenArray = children as? [AXUIElement] else {
-        return interactiveElements
-      }
-
-      // Traverse children and filter by role
-      for child in childrenArray {
-        var role: CFTypeRef?
-        AXUIElementCopyAttributeValue(child, kAXRoleAttribute as CFString, &role)
-        // if let roleString = role as? String, isInteractiveRole(roleString) {
-        //   interactiveElements.append(child)
-        // }
-        interactiveElements.append(child)
-        // Recursively gather interactive elements
-        interactiveElements.append(contentsOf: gatherInteractiveElements(from: child))
-      }
-
-      return interactiveElements
-    }
-
-    // Collect interactive elements from all windows
-    var allInteractiveElements: [AXUIElement] = []
+    // TODO: temporarily all, but later select those that are visisble
+    var result: [AXUIElement] = []
     for window in windowsArray {
-      allInteractiveElements.append(contentsOf: gatherInteractiveElements(from: window))
+      result.append(contentsOf: dfs(from: window))
     }
 
-    return allInteractiveElements
+    return result
   }
 
-  private func toString(el: AXUIElement) -> String? {
-    func getAttributeString(_ attribute: String) -> String? {
-      var value: CFTypeRef?
-      let result = AXUIElementCopyAttributeValue(el, attribute as CFString, &value)
-      guard result == .success, let stringValue = value as? String else {
-        return nil
-      }
-      return stringValue
+  private func dfs(from element: AXUIElement) -> [AXUIElement] {
+    var els: [AXUIElement] = []
+
+    var children: CFTypeRef?
+    let childResult = AXUIElementCopyAttributeValue(
+      element, kAXChildrenAttribute as CFString, &children)
+    guard childResult == .success, let childrenArray = children as? [AXUIElement] else {
+      return els
     }
 
+    for child in childrenArray {
+      var role: CFTypeRef?
+      AXUIElementCopyAttributeValue(child, kAXRoleAttribute as CFString, &role)
+      els.append(child)
+      els.append(contentsOf: dfs(from: child))
+    }
+
+    return els
+  }
+
+  private func getAttributeString(_ el: AXUIElement, _ attribute: String) -> String? {
+    var value: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(el, attribute as CFString, &value)
+    guard result == .success, let stringValue = value as? String else {
+      return nil
+    }
+    return stringValue
+  }
+
+  private func asString(_ el: AXUIElement) -> String? {
     let components = [
-      getAttributeString(kAXRoleAttribute) ?? "",
-      getAttributeString(kAXTitleAttribute) ?? "",
-      getAttributeString(kAXDescriptionAttribute) ?? "",
-      getAttributeString(kAXLabelValueAttribute) ?? "",
+      // getAttributeString(el, kAXRoleAttribute) ?? "",
+      // getAttributeString(el, kAXTitleAttribute) ?? "",
+      getAttributeString(el, kAXValueAttribute) ?? "",
+      // getAttributeString(el, kAXDescriptionAttribute) ?? "",
+      // getAttributeString(el, kAXLabelValueAttribute) ?? "",
     ].filter { !$0.isEmpty }
     return components.isEmpty ? nil : components.joined(separator: ", ")
   }
@@ -105,10 +97,12 @@ class ListElementsAction {
       return nil
     }
 
+    let els = fetchInteractiveElements(for: current)
+    print("Count \(els.count)")
     return HintsView(
-      els: Array(fetchInteractiveElements(for: current).prefix(169)),
+      els: els,
       getPoint: self.getPoint,
-      toString: self.toString
+      toString: self.asString
     )
   }
 }

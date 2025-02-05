@@ -1,18 +1,8 @@
 import SwiftUI
 
 @MainActor
-struct AppView: View {
+class AppListeners {
   let listElsAction = ListElementsAction()
-  @State var options = AppOptions()
-
-  var body: some View {
-    GeometryReader { geometry in
-      VStack { SettingsView(options: $options) }
-        .onAppear(perform: self.attachListeners)
-        .frame(width: geometry.size.width, height: geometry.size.height)
-    }
-    .edgesIgnoringSafeArea(.all)  // Optional: to ignore safe area
-  }
 
   func listAll() {
     guard let hintsView = self.listElsAction.exec() else {
@@ -34,14 +24,13 @@ struct AppView: View {
       })
   }
 
-  func attachListeners() {
+  func listen() {
     NSEvent.addGlobalMonitorForEvents(
       matching: .keyDown,
       handler: { (event) in
         if !event.modifierFlags.contains([.command, .shift]) || event.keyCode != 47 {
           return
         }
-        print("Interactive only \(self.options.interactiveOnly)")
         self.listAll()
       })
   }
