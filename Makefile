@@ -1,4 +1,4 @@
-CXX := clang -framework ApplicationServices
+CXX := clang -DVERBOSE_LOG -framework ApplicationServices
 CXXFLAGS := -g -Og -Wno-unused-command-line-argument -Wall -Iinclude -I/
 DEPFLAGS := -MMD -MP
 

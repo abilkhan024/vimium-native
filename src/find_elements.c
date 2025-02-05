@@ -1,3 +1,5 @@
+#include "../include/find_elements.h"
+#include "../include/sys.h"
 #include <ApplicationServices/ApplicationServices.h>
 #include <CoreFoundation/CFArray.h>
 #include <CoreFoundation/CFBase.h>
@@ -80,12 +82,6 @@ char *axui_to_string(AXUIElementRef el) {
   axui_append_attr_val(el, kAXValueAttribute, &str, &len);
   axui_append_attr_val(el, kAXValueDescriptionAttribute, &str, &len);
 
-  /* axui_append_attr_val(el, kAXHelpAttribute, &str, &len); */
-  /* axui_append_attr_val(el, kAXDescriptionAttribute, &str, &len); */
-  /* axui_append_attr_val(el, kAXContentsAttribute, &str, &len); */
-  /* axui_append_attr_val(el, kAXSelectedTextAttribute, &str, &len); */
-  /* axui_append_attr_val(el, kAXVisibleCharacterRangeAttribute, &str, &len); */
-
   return str;
 }
 
@@ -117,7 +113,7 @@ void axui_select_nested(AXUIElementRef node, AXUIElementRef *els,
   children_ref_ptrs[(*children_ref_len)++] = children_ref;
 }
 
-AXUIElementRef *axui_list_from_process(pid_t pid, size_t *count) {
+axui_meta *axui_list_from_process(pid_t pid, size_t *count) {
   *count = 0;
 
   AXUIElementRef app = AXUIElementCreateApplication(pid);
@@ -141,7 +137,6 @@ AXUIElementRef *axui_list_from_process(pid_t pid, size_t *count) {
   printf("PID: %d, has %ld windows\n", pid, (long)win_count);
 
   size_t total_els = 0;
-  size_t els_count = 0;
 
   const size_t els_limit = 3000; // Don't know which value would be logical but
                                  // setting to just arbitrarily large value
@@ -155,18 +150,27 @@ AXUIElementRef *axui_list_from_process(pid_t pid, size_t *count) {
     abort();
   }
 
-  for (CFIndex i = 0; i < win_count; i++) {
-    printf("Window %ld\n", (long)i);
-    AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
-    axui_select_nested(window, els, &els_count, &els_limit, children_ref_ptrs,
-                       &children_ref_ptrs_len);
-    total_els += els_count;
-    for (size_t i = 0; i < els_count; i++) {
-      char *desc = axui_to_string(els[i]);
-      printf("Element %zu: '%s'\n", i, desc);
-      free(desc);
-    }
-    break;
+  CFIndex i = 0; // Later < win_count?
+  AXUIElementRef window = (AXUIElementRef)CFArrayGetValueAtIndex(windows, i);
+  axui_select_nested(window, els, &total_els, &els_limit, children_ref_ptrs,
+                     &children_ref_ptrs_len);
+  total_els += total_els;
+  axui_meta *meta_els = malloc(total_els * sizeof(axui_meta));
+
+  for (size_t i = 0; i < total_els; i++) {
+    char *role = NULL;
+    size_t role_len = 0;
+    axui_append_attr_val(els[i], kAXRoleAttribute, &role, &role_len);
+
+    char *content = NULL;
+    size_t content_len = 0;
+    axui_append_attr_val(els[i], kAXValueAttribute, &content, &content_len);
+
+    meta_els[i].role = role;
+    meta_els[i].content = content;
+
+    meta_els[i].pox_x = 69;
+    meta_els[i].pox_y = 69;
   }
 
   for (size_t i = 0; i < children_ref_ptrs_len; i++) {
@@ -177,24 +181,16 @@ AXUIElementRef *axui_list_from_process(pid_t pid, size_t *count) {
   CFRelease(windows);
   CFRelease(app);
 
-  printf("PID: %d, elements %zu\n", pid, total_els);
-
-  return els;
+  log_vb("PID: %d, elements %zu", pid, total_els);
+  return meta_els;
 }
 
-int current_window(char *pid_str) {
+axui_meta *axui_list_from_pid_window(char *pid_str, size_t *count) {
   int pid_int = atoi(pid_str);
   if (pid_int <= 0) {
-    printf("Invalid PID %d when converting %s", pid_int, pid_str);
-    return 1;
+    log_vb("Invalid PID %d when converting %s", pid_int, pid_str);
+    return NULL;
   }
-
   size_t pid = pid_int;
-  size_t els_count = 0;
-  /** May be return ptr for custom struct instead, which will have fields like
-   * {role, content, etc.} */
-  AXUIElementRef *list = axui_list_from_process(pid, &els_count);
-  free(list);
-
-  return 0;
+  return axui_list_from_process(pid, count);
 }
