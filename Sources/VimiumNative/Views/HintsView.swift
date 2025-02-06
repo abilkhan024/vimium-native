@@ -4,26 +4,34 @@ import SwiftUI
 
 struct HintsView: View {
   let els: [AXUIElement]
-  let getPoint: (_: AXUIElement) -> CGPoint?
-  let toString: (_: AXUIElement) -> String?
 
   init(
-    els: [AXUIElement],
-    getPoint: @escaping (_: AXUIElement) -> CGPoint?,
-    toString: @escaping (_: AXUIElement) -> String?
+    els: [AXUIElement]
   ) {
-    self.els = els
-    self.getPoint = getPoint
-    self.toString = toString
+    self.els = els.filter { el in
+      if let res = AXUIElementUtils.isInViewport(el) {
+        return res
+      } else {
+        return false
+      }
+    }
   }
 
   var body: some View {
     ZStack {
-      ForEach(els, id: \.self) { el in
-        if let point = self.getPoint(el), let content = self.toString(el) {
-          Text(content)
-            .position(x: point.x, y: point.y)
-            .foregroundColor(.red)
+      ForEach(els.indices, id: \.self) { idx in
+        let el = els[idx]
+        if let point = AXUIElementUtils.getPoint(el),
+          let size = AXUIElementUtils.getSize(el)
+        {
+          ZStack {
+            Text(String(idx))
+              .foregroundColor(.red)
+          }
+          // .frame(width: 28, height: 14)
+          .background(.black)
+          .clipShape(RoundedRectangle(cornerRadius: 4))
+          .position(x: point.x + size.width / 2, y: point.y + size.height / 2)
         } else {
           EmptyView()
         }

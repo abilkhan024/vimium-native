@@ -2,10 +2,18 @@ import Cocoa
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-  let listeners = AppListeners()
+
+  override init() {
+    super.init()
+    AppEventManager.add(HintListener())
+  }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    listeners.listen()
+    AppEventManager.listen()
+  }
+
+  func applicationWillTerminate(_ notification: Notification) {
+    AppEventManager.stop()
   }
 }
 

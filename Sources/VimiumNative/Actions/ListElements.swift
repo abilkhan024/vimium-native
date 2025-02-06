@@ -53,56 +53,13 @@ class ListElementsAction {
     return els
   }
 
-  private func getAttributeString(_ el: AXUIElement, _ attribute: String) -> String? {
-    var value: CFTypeRef?
-    let result = AXUIElementCopyAttributeValue(el, attribute as CFString, &value)
-    guard result == .success, let stringValue = value as? String else {
-      return nil
-    }
-    return stringValue
-  }
-
-  private func asString(_ el: AXUIElement) -> String? {
-    let components = [
-      // getAttributeString(el, kAXRoleAttribute) ?? "",
-      // getAttributeString(el, kAXTitleAttribute) ?? "",
-      getAttributeString(el, kAXValueAttribute) ?? "",
-      // getAttributeString(el, kAXDescriptionAttribute) ?? "",
-      // getAttributeString(el, kAXLabelValueAttribute) ?? "",
-    ].filter { !$0.isEmpty }
-    return components.isEmpty ? nil : components.joined(separator: ", ")
-  }
-
-  private func getPoint(el: AXUIElement) -> CGPoint? {
-    var position: CFTypeRef?
-
-    // Try to fetch the position of the element
-    let result = AXUIElementCopyAttributeValue(el, kAXPositionAttribute as CFString, &position)
-    guard result == .success else {
-      print("Failed to get position for element: \(el)")
-      return nil
-    }
-    let positionValue = (position as! AXValue)
-
-    // Convert AXValue to CGPoint
-    var point = CGPoint.zero
-    let success = AXValueGetValue(positionValue, .cgPoint, &point)
-    return success ? point : nil
-  }
-
-  func exec() -> HintsView? {
+  func exec() -> [AXUIElement]? {
     guard let current = (NSWorkspace.shared.frontmostApplication)
     else {
       print("No current application running")
       return nil
     }
 
-    let els = fetchInteractiveElements(for: current)
-    print("Count \(els.count)")
-    return HintsView(
-      els: els,
-      getPoint: self.getPoint,
-      toString: self.asString
-    )
+    return fetchInteractiveElements(for: current)
   }
 }
