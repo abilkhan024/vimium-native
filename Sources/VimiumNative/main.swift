@@ -2,8 +2,10 @@ import Cocoa
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
+  let listeners = AppListeners()
+
   func applicationDidFinishLaunching(_ notification: Notification) {
-    let _ = AppListeners()
+    listeners.listen()
   }
 }
 

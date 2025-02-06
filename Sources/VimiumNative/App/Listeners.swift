@@ -1,4 +1,4 @@
-import Cocoa
+@preconcurrency import Cocoa
 import CoreGraphics
 import SwiftUI
 
@@ -7,7 +7,7 @@ class AppListeners {
   private var eventTap: CFMachPort?
   private static var overlayWindow: NSWindow?
 
-  init() {
+  func listen() {
     let eventMask = (1 << CGEventType.keyDown.rawValue)
     eventTap = CGEvent.tapCreate(
       tap: .cgSessionEventTap,
@@ -30,18 +30,23 @@ class AppListeners {
 
         switch keyCode {
         case 47:
-          guard let hintsView = ListElementsAction().exec() else {
-            print("Failed to get HintsView")
-            return nil
+          DispatchQueue.main.async {
+            guard let hintsView = ListElementsAction().exec() else {
+              return print("Failed to get HintsView")
+            }
+            if let win = AppListeners.overlayWindow {
+              win.contentView = NSHostingView(rootView: AnyView(hintsView))
+              win.makeKeyAndOrderFront(nil)
+            } else {
+              AppListeners.overlayWindow = Window(view: AnyView(hintsView)).transparent().front()
+                .make()
+            }
           }
-          // FUCKING SEGFAULTS!!!!!!!!!!!!!!!
-          AppListeners.overlayWindow = Window(view: AnyView(hintsView)).transparent().front()
-            .make()
-          print("Showing")
           return nil
         case 43:
-          print("Closing")
-          AppListeners.overlayWindow?.close()
+          DispatchQueue.main.async {
+            AppListeners.overlayWindow?.orderOut(nil)
+          }
           return nil
         default:
           return preserve
@@ -55,12 +60,13 @@ class AppListeners {
       CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
       CGEvent.tapEnable(tap: eventTap, enable: true)
     }
+
   }
 
-  deinit {
-    // if let eventTap = eventTap {
-    //   CGEvent.tapEnable(tap: eventTap, enable: false)
-    // }
+  func stop() {
+    if let eventTap = eventTap {
+      CGEvent.tapEnable(tap: eventTap, enable: false)
+    }
   }
 
 }
