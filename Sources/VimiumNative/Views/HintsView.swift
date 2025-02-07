@@ -5,17 +5,7 @@ import SwiftUI
 struct HintsView: View {
   let els: [AXUIElement]
 
-  init(
-    els: [AXUIElement]
-  ) {
-    self.els = els.filter { el in
-      if let res = AXUIElementUtils.isInViewport(el) {
-        return res
-      } else {
-        return false
-      }
-    }
-  }
+  init(els: [AXUIElement]) { self.els = els }
 
   var body: some View {
     ZStack {

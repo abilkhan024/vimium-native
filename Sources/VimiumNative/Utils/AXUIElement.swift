@@ -24,8 +24,28 @@ class AXUIElementUtils {
     let positionValue = (position as! AXValue)
 
     var point = CGPoint.zero
-    let success = AXValueGetValue(positionValue, .cgPoint, &point)
-    return success ? point : nil
+    if !AXValueGetValue(positionValue, .cgPoint, &point) {
+      return nil
+    }
+    return point
+  }
+
+  static func getBoundingRect(_ el: AXUIElement) -> CGRect? {
+    guard let origin = getPoint(el), let size = getSize(el) else {
+      return nil
+    }
+    return CGRect(origin: origin, size: size)
+  }
+
+  static func getParent(_ element: AXUIElement) -> AXUIElement? {
+    var parent: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(element, kAXParentAttribute as CFString, &parent)
+
+    if result != .success {
+      return nil
+    }
+
+    return (parent as! AXUIElement)
   }
 
   static func getSize(_ el: AXUIElement) -> CGSize? {
@@ -51,35 +71,14 @@ class AXUIElementUtils {
     return stringValue
   }
 
-  static func isInViewport(_ element: AXUIElement) -> Bool? {
-    var value: AnyObject?
-    let result = AXUIElementCopyAttributeValue(element, kAXPositionAttribute as CFString, &value)
-
-    guard result == .success, let positionValue = value as! AXValue? else {
+  static func isInViewport(_ el: AXUIElement) -> Bool? {
+    guard let parent = getParent(el), let parentRect = getBoundingRect(parent),
+      let elRect = getBoundingRect(el)
+    else {
       return nil
     }
 
-    var position = CGPoint.zero
-    if AXValueGetType(positionValue) == .cgPoint {
-      AXValueGetValue(positionValue, .cgPoint, &position)
-    }
-
-    var sizeValue: AnyObject?
-    let sizeResult = AXUIElementCopyAttributeValue(
-      element, kAXSizeAttribute as CFString, &sizeValue)
-
-    guard sizeResult == .success, let sizeAXValue = sizeValue as! AXValue? else {
-      return nil
-    }
-
-    var size = CGSize.zero
-    if AXValueGetType(sizeAXValue) == .cgSize {
-      AXValueGetValue(sizeAXValue, .cgSize, &size)
-    }
-
-    let screenBounds = NSScreen.main?.frame ?? NSRect.zero
-
-    let elementRect = CGRect(origin: position, size: size)
-    return screenBounds.intersects(elementRect)
+    return parentRect.maxX != elRect.maxX || parentRect.maxY != elRect.maxY
+      || parentRect.minX != elRect.minX || parentRect.minY != elRect.minY
   }
 }

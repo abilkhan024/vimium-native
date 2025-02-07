@@ -13,24 +13,21 @@ class ListElementsAction {
 
     let appElement = AXUIElementCreateApplication(pid)
 
-    var wins: CFTypeRef?
+    var cfWindows: CFTypeRef?
     let winResult = AXUIElementCopyAttributeValue(
-      appElement, kAXWindowsAttribute as CFString, &wins)
+      appElement, kAXWindowsAttribute as CFString, &cfWindows)
 
-    guard winResult == .success, let windowsArray = wins as? [AXUIElement] else {
+    guard winResult == .success, let windows = cfWindows as? [AXUIElement] else {
       print(
         "Failed to get windows for application: \(runningApp.localizedName ?? "Unknown App"), with \(winResult)"
       )
       return []
     }
 
-    // TODO: temporarily all, but later select those that are visisble
-    var result: [AXUIElement] = []
-    for window in windowsArray {
-      result.append(contentsOf: dfs(from: window))
+    guard let window = windows.first else {
+      return []
     }
-
-    return result
+    return dfs(from: window)
   }
 
   private func dfs(from element: AXUIElement) -> [AXUIElement] {

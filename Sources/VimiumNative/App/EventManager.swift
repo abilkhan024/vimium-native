@@ -2,10 +2,16 @@
 import CoreGraphics
 import SwiftUI
 
+enum Keys: Int64 {
+  case open = 47
+  case close = 43
+  case esc = 53
+}
+
 @MainActor
 protocol Listener: AnyObject {
-  var match: (_ event: CGEvent) -> Bool { get }
-  var callback: (_ event: CGEvent) -> Void { get }
+  func match(_: CGEvent) -> Bool
+  func callback(_: CGEvent)
 }
 
 /// Static only because for some reason swift
@@ -57,10 +63,6 @@ class AppEventManager {
       CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
       CGEvent.tapEnable(tap: eventTap, enable: true)
     }
-  }
-
-  static func cmon() {
-    print("Ye")
   }
 
   static func stop() {
