@@ -120,7 +120,9 @@ class HintListener: Listener {
       return els
     }
     let lower = search.lowercased()
-    // but i want to be able to fist by content later start typing id, also must be able to fzf
+    //  but i want to be able to fist by content later start typing id
+    //  May be introduce special char like . that would re request new labels from current selection
+
     return els.filter { (e) in
       e.id.lowercased().starts(with: search) || e.content?.lowercased().contains(lower) ?? false
     }
