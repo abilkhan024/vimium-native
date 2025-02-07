@@ -2,8 +2,9 @@ import CoreGraphics
 import SwiftUI
 
 struct HintElement: Hashable {
-  var axui: AXUIElement
   var id: String
+  var axui: AXUIElement
+  var content: String?
 }
 
 @MainActor
@@ -29,18 +30,16 @@ class HintListener: Listener {
       guard let els = ListElementsAction().exec() else {
         return print("Failed to get AXUIs")
       }
-      // DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-      //   if self.input != "" {
-      //     NSApplication.shared.terminate(nil)
-      //   }
-      // }
-      let visibleEls = els.filter { el in
+      let visibleAxuis = els.filter { el in
         guard let visible = AXUIElementUtils.isInViewport(el) else {
           return false
         }
         return visible
-      }.enumerated().map { idx, el in HintElement(axui: el, id: String(idx)) }
-      self.visibleEls = visibleEls
+      }
+      let seq = genLabels(from: els.count, using: "asdfghjklweruio")
+      self.visibleEls = visibleAxuis.enumerated().map { idx, el in
+        HintElement(id: seq[idx], axui: el, content: AXUIElementUtils.toString(el))
+      }
       input = ""
       if let prev = globalListener {
         AppEventManager.remove(prev)
@@ -66,11 +65,40 @@ class HintListener: Listener {
     hintsWindow.orderOut(nil)
   }
 
+  private func genLabels(from n: Int, using _chars: String) -> [String] {
+    var result: [String] = []
+    let chars = _chars.split(separator: "").map { sub in String(sub) }
+    var q: [String] = chars
+
+    if q.isEmpty {
+      return result
+    }
+
+    while result.count < n {
+      let cur = q.first!
+      for char in chars {
+        let next = cur + char
+        result.append(next)
+        if result.count == n {
+          break
+        }
+        q.append(next)
+      }
+      q = Array(q.dropFirst())
+    }
+
+    return result
+  }
+
   private func renderHints(_ els: [HintElement]) {
-    let hintsView = HintsView(els: els)
-    hintsWindow.contentView = NSHostingView(rootView: AnyView(hintsView))
-    hintsWindow.makeKeyAndOrderFront(nil)
-    print("Rendering \(els.count)")
+    print("Rendering \(els.count) for input \(input)")
+    if els.isEmpty {
+      hintsWindow.contentView = nil
+    } else {
+      let hintsView = HintsView(els: els)
+      hintsWindow.contentView = NSHostingView(rootView: AnyView(hintsView))
+      hintsWindow.makeKeyAndOrderFront(nil)
+    }
   }
 
   private func getChar(from event: CGEvent) -> String? {
@@ -87,6 +115,17 @@ class HintListener: Listener {
     return nil
   }
 
+  private func searchEls(els: [HintElement], search: String) -> [HintElement] {
+    if search.isEmpty {
+      return els
+    }
+    let lower = search.lowercased()
+    // but i want to be able to fist by content later start typing id, also must be able to fzf
+    return els.filter { (e) in
+      e.id.lowercased().starts(with: search) || e.content?.lowercased().contains(lower) ?? false
+    }
+  }
+
   private func onTyping(_ event: CGEvent) {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
     switch keyCode {
@@ -101,11 +140,11 @@ class HintListener: Listener {
       if input.isEmpty {
         return renderHints(self.visibleEls)
       }
-      return renderHints(self.visibleEls.filter { (e) in e.id.starts(with: input) })
+      return renderHints(searchEls(els: self.visibleEls, search: input))
     default:
       guard let char = getChar(from: event) else { return }
       input.append(char)
-      return renderHints(self.visibleEls.filter { (e) in e.id.starts(with: input) })
+      return renderHints(searchEls(els: self.visibleEls, search: input))
     }
   }
 }

@@ -15,14 +15,18 @@ struct HintsView: View {
         if let point = AXUIElementUtils.getPoint(el),
           let size = AXUIElementUtils.getSize(el)
         {
+          let first = i == 0
+          let scale = first ? 1.2 : 1
           ZStack {
             Text(e.id)
-              .font(.system(size: i == 0 ? 18 : 14))
+              .font(.system(size: 14 * scale))
               .foregroundColor(.red)
           }
-          // .frame(width: 28, height: 14)
+          .frame(width: 36 * scale, height: 24 * scale)
           .background(.black)
           .clipShape(RoundedRectangle(cornerRadius: 4))
+          .overlay(Rectangle().stroke(.red, lineWidth: 2))
+          .opacity(first ? 1 : 0.75)
           .position(x: point.x + size.width / 2, y: point.y + size.height / 2)
         } else {
           EmptyView()
