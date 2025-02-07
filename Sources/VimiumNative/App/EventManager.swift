@@ -6,6 +6,8 @@ enum Keys: Int64 {
   case open = 47
   case close = 43
   case esc = 53
+  case enter = 36
+  case backspace = 51
 }
 
 @MainActor

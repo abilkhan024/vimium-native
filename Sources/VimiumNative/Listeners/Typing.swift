@@ -12,7 +12,6 @@ class GlobalListener: Listener {
   }
 
   func match(_ event: CGEvent) -> Bool {
-    print("Typing listener")
     return true
   }
 
