@@ -6,6 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   override init() {
     super.init()
     AppEventManager.add(HintListener())
+    AppEventManager.add(MouseListener())
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
@@ -13,7 +14,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       return print("AXIsProcessTrusted is false")
     }
     AppEventManager.listen()
-    print("Started")
+    print("Listening to trigger key")
   }
 
   func applicationWillTerminate(_ notification: Notification) {
