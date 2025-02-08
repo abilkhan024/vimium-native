@@ -5,28 +5,32 @@ struct HintElement: Hashable {
   var id: String
   var axui: AXUIElement
   var content: String?
+  var position: CGPoint?
 }
 
 @MainActor
 class HintListener: Listener {
   private var globalListener: GlobalListener?
   private let hintsWindow = Window(view: AnyView(EmptyView())).transparent().make()
+
   private var visibleEls: [HintElement] = []
+  private var renderedEls: [HintElement] = []
   private var input = ""
+  private var labelSeq: [String] = []
 
   func match(_ event: CGEvent) -> Bool {
     let flags = event.flags
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
 
     return flags.contains(.maskCommand) && flags.contains(.maskShift)
-      && (keyCode == Keys.open.rawValue || keyCode == Keys.close.rawValue)
+      && (keyCode == Keys.dot.rawValue || keyCode == Keys.comma.rawValue)
   }
 
   func callback(_ event: CGEvent) {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
 
     switch keyCode {
-    case Keys.open.rawValue:
+    case Keys.dot.rawValue:
       guard let els = ListElementsAction().exec() else {
         return print("Failed to get AXUIs")
       }
@@ -36,9 +40,8 @@ class HintListener: Listener {
         }
         return visible
       }
-      let seq = genLabels(from: els.count, using: "asdfghjklweruio")
       self.visibleEls = visibleAxuis.enumerated().map { idx, el in
-        HintElement(id: seq[idx], axui: el, content: AXUIElementUtils.toString(el))
+        axuiToHint(visibleAxuis.count, idx, el)
       }
       input = ""
       if let prev = globalListener {
@@ -49,7 +52,7 @@ class HintListener: Listener {
       renderHints(visibleEls)
       hintsWindow.makeKeyAndOrderFront(nil)
       break
-    case Keys.close.rawValue:
+    case Keys.comma.rawValue:
       return onClose()
     default:
       print("Impossible case exectued")
@@ -66,7 +69,7 @@ class HintListener: Listener {
   }
 
   private func genLabels(from n: Int, using _chars: String) -> [String] {
-    var result: [String] = []
+    var result: [String] = labelSeq
     let chars = _chars.split(separator: "").map { sub in String(sub) }
     var q: [String] = chars
 
@@ -86,12 +89,13 @@ class HintListener: Listener {
       }
       q = Array(q.dropFirst())
     }
+    labelSeq = result
 
     return result
   }
 
   private func renderHints(_ els: [HintElement]) {
-    print("Rendering \(els.count) for input \(input)")
+    renderedEls = els
     if els.isEmpty {
       hintsWindow.contentView = nil
     } else {
@@ -120,12 +124,35 @@ class HintListener: Listener {
       return els
     }
     let lower = search.lowercased()
-    //  but i want to be able to fist by content later start typing id
-    //  May be introduce special char like . that would re request new labels from current selection
 
     return els.filter { (e) in
       e.id.lowercased().starts(with: search) || e.content?.lowercased().contains(lower) ?? false
     }
+  }
+
+  private func selectEl(_ el: HintElement) {
+    guard let point = el.position else { return }
+    let eventDown = CGEvent(
+      mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point,
+      mouseButton: .left)
+    let eventUp = CGEvent(
+      mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left
+    )
+    eventDown?.post(tap: .cghidEventTap)
+    eventUp?.post(tap: .cghidEventTap)
+    print("Selecting \(el.id)")
+  }
+
+  private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
+    let seq = genLabels(from: count, using: AppOptions.load().hintChars)
+    var hint = HintElement(id: seq[idx], axui: el, content: AXUIElementUtils.toString(el))
+    if let point = AXUIElementUtils.getPoint(el),
+      let size = AXUIElementUtils.getSize(el)
+    {
+      hint.position = CGPointMake(point.x + size.width / 2, point.y + size.height / 2)
+    }
+
+    return hint
   }
 
   private func onTyping(_ event: CGEvent) {
@@ -133,9 +160,16 @@ class HintListener: Listener {
     switch keyCode {
     case Keys.esc.rawValue:
       return onClose()
+    case Keys.dot.rawValue:
+      self.visibleEls = self.renderedEls.enumerated().map { (idx, el) in
+        axuiToHint(self.renderedEls.count, idx, el.axui)
+      }
+      self.input = ""
+      return renderHints(self.visibleEls)
     case Keys.enter.rawValue:
-      let selectedId = self.visibleEls.first?.id ?? "-1"
-      print("Selecting \(selectedId)")
+      if let first = self.renderedEls.count == 1 ? self.renderedEls.first : nil {
+        self.selectEl(first)
+      }
       return onClose()
     case Keys.backspace.rawValue:
       input = String(input.dropLast())

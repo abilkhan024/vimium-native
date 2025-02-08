@@ -3,8 +3,8 @@ import CoreGraphics
 import SwiftUI
 
 enum Keys: Int64 {
-  case open = 47
-  case close = 43
+  case dot = 47
+  case comma = 43
   case esc = 53
   case enter = 36
   case backspace = 51
