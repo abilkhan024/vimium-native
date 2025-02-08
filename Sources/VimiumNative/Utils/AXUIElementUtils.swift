@@ -30,6 +30,14 @@ class AXUIElementUtils {
     return point
   }
 
+  static func getPosition(_ el: AXUIElement) -> CGPoint? {
+    guard let point = getPoint(el), let size = getSize(el) else {
+      return nil
+    }
+
+    return CGPoint(x: point.x + size.width / 2, y: point.y + size.height / 2)
+  }
+
   static func getBoundingRect(_ el: AXUIElement) -> CGRect? {
     guard let origin = getPoint(el), let size = getSize(el) else {
       return nil
@@ -73,16 +81,12 @@ class AXUIElementUtils {
 
   static func isInViewport(_ el: AXUIElement) -> Bool? {
     guard let parent = getParent(el), let parentRect = getBoundingRect(parent),
-      let elRect = getBoundingRect(el)
+      let elPos = getPosition(el)
     else {
       return nil
     }
 
-    // print(
-    //   "Pos for \(self.toString(el) ?? "Unkown") | \(parentRect.maxX)  \(elRect.maxX), \(parentRect.maxY) \(elRect.maxY), \(parentRect.minX)  \(elRect.minX), \(parentRect.minY)  \(elRect.minY) "
-    // )
-
-    return parentRect.maxX != elRect.maxX || parentRect.maxY != elRect.maxY
-      || parentRect.minX != elRect.minX || parentRect.minY != elRect.minY
+    return elPos.x != parentRect.maxX && elPos.x != parentRect.minX && elPos.y != parentRect.maxY
+      && elPos.y != parentRect.minY
   }
 }

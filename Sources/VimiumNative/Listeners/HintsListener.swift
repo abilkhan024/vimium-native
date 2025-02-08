@@ -34,7 +34,7 @@ class HintListener: Listener {
       guard let els = ListElementsAction().exec() else {
         return print("Failed to get AXUIs")
       }
-      let visibleAxuis = els.filter { el in
+      let visibleAxuis = els.filter { (el) in
         guard let visible = AXUIElementUtils.isInViewport(el) else {
           return false
         }
@@ -146,7 +146,6 @@ class HintListener: Listener {
   private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
     let seq = genLabels(from: count, using: AppOptions.load().hintChars)
     let id = seq[idx]
-    // let id = AXUIElementUtils.toString(el) ?? "Unkown"
     var hint = HintElement(id: id, axui: el, content: AXUIElementUtils.toString(el))
     if let point = AXUIElementUtils.getPoint(el),
       let size = AXUIElementUtils.getSize(el)

@@ -27,11 +27,10 @@ class ListElementsAction {
     var els: [AXUIElement] = []
 
     for el in windows {
+      els.append(el)
       if let role = AXUIElementUtils.getAttributeString(el, kAXRoleAttribute), role == "AXWindow" {
-        els.append(el)
         break
       }
-      els.append(el)
     }
 
     var result: [AXUIElement] = []

@@ -10,9 +10,7 @@ struct HintsView: View {
   var body: some View {
     ZStack {
       ForEach(els, id: \.self) { e in
-        if let point = AXUIElementUtils.getPoint(e.axui),
-          let size = AXUIElementUtils.getSize(e.axui)
-        {
+        if let position = AXUIElementUtils.getPosition(e.axui) {
           let selected = els.count == 1
           let scale = selected ? 1.2 : 1
           ZStack {
@@ -26,7 +24,7 @@ struct HintsView: View {
           .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
           .cornerRadius(4)
           .opacity(selected ? 1 : 0.75)
-          .position(x: point.x + size.width / 2, y: point.y + size.height / 2)
+          .position(position)
         } else {
           EmptyView()
         }
