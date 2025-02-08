@@ -8,11 +8,10 @@ struct MouseView: View {
   init(position: CGPoint) { self.position = position }
 
   var body: some View {
-    ZStack {
-      Text("Test").foregroundColor(.blue)
-    }.position(self.position)
-      .background(.red)
-      .frame(width: 40, height: 40)
-      .cornerRadius(999)
+    Hint(content: "OD", position: CGPointMake(40, 40), fontSize: 16, width: 40, height: 20)
+    Ellipse()
+      .fill(Color.red)
+      .frame(width: 10, height: 10)
+      .position(self.position)
   }
 }

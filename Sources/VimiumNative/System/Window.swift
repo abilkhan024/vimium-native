@@ -4,47 +4,66 @@ import SwiftUI
 
 @MainActor
 class Window {
-  let view: AnyView
-  let window = NSWindow(
+  private static let shared = Window()
+  private static let window = NSWindow(
     contentRect: NSMakeRect(0, 0, 0, 0),
     styleMask: [.borderless],
     backing: .buffered,
     defer: false
   )
 
-  init(view: AnyView) {
-    self.view = view
-  }
+  private init() {
+    Window.window.isOpaque = false
+    Window.window.backgroundColor = .clear
+    Window.window.level = .screenSaver
+    Window.window.ignoresMouseEvents = true
+    Window.window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-  func front() -> Window {
-    window.makeKeyAndOrderFront(nil)
-    return self
-  }
-
-  func transparent() -> Window {
-    window.isOpaque = false
-    window.backgroundColor = .clear
-    window.level = .screenSaver
-    window.ignoresMouseEvents = true
-    window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
-    return self
-  }
-
-  func make() -> NSWindow {
     if let screen = NSScreen.main {
       let screenFrame = screen.frame
-      window.setFrame(screenFrame, display: true)
+      Window.window.setFrame(screenFrame, display: true)
     }
-    let hostingView = NSHostingView(rootView: view)
+    let hostingView = NSHostingView(rootView: AnyView(EmptyView()))
     hostingView.frame = NSRect(
       x: 0,
       y: 0,
-      width: window.frame.width,
-      height: window.frame.height
+      width: Window.window.frame.width,
+      height: Window.window.frame.height
     )
-    window.contentView?.addSubview(hostingView)
-
-    return window
+    Window.window.contentView?.addSubview(hostingView)
   }
 
+  static func get() -> Window {
+    return shared
+  }
+
+  func front() -> Window {
+    Window.window.makeKeyAndOrderFront(nil)
+    return self
+  }
+
+  func hide() -> Window {
+    Window.window.orderOut(nil)
+    return self
+  }
+
+  func clear() -> Window {
+    Window.window.contentView = nil
+    return self
+  }
+
+  func render(_ view: AnyView) -> Window {
+    Window.window.contentView = NSHostingView(rootView: view)
+    Window.window.makeKeyAndOrderFront(nil)
+    return self
+  }
+
+  func native() -> NSWindow {
+    return Window.window
+  }
+
+  // Fake stub to prevent warning for unused result
+  // Could potentially use for lazy eval
+  func call() {
+  }
 }

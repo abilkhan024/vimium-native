@@ -11,7 +11,7 @@ struct HintElement: Hashable {
 @MainActor
 class HintListener: Listener {
   private var globalListener: GlobalListener?
-  private let hintsWindow = Window(view: AnyView(EmptyView())).transparent().make()
+  private let window = Window.get()
 
   private var visibleEls: [HintElement] = []
   private var renderedEls: [HintElement] = []
@@ -50,7 +50,7 @@ class HintListener: Listener {
       globalListener = GlobalListener(onEvent: self.onTyping)
       AppEventManager.add(globalListener!)
       renderHints(visibleEls)
-      hintsWindow.makeKeyAndOrderFront(nil)
+      window.front().call()
       break
     default:
       print("Impossible case exectued")
@@ -63,7 +63,7 @@ class HintListener: Listener {
       globalListener = nil
     }
     input = ""
-    hintsWindow.orderOut(nil)
+    window.hide().call()
   }
 
   private func genLabels(from n: Int, using _chars: String) -> [String] {
@@ -95,11 +95,11 @@ class HintListener: Listener {
   private func renderHints(_ els: [HintElement]) {
     renderedEls = els
     if els.isEmpty {
-      hintsWindow.contentView = nil
+      window.clear().call()
     } else {
-      let hintsView = HintsView(els: els)
-      hintsWindow.contentView = NSHostingView(rootView: AnyView(hintsView))
-      hintsWindow.makeKeyAndOrderFront(nil)
+      window.render(AnyView(HintsView(els: els)))
+        .front()
+        .call()
     }
     NSCursor.hide()
     print("Rendering \(els.count)")
@@ -132,14 +132,7 @@ class HintListener: Listener {
 
   private func selectEl(_ el: HintElement) {
     guard let point = el.position else { return }
-    let eventDown = CGEvent(
-      mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point,
-      mouseButton: .left)
-    let eventUp = CGEvent(
-      mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left
-    )
-    eventDown?.post(tap: .cghidEventTap)
-    eventUp?.post(tap: .cghidEventTap)
+    SystemUtils.click(point)
     print("Selecting \(el.id)")  // shortcut for click to current position again?
   }
 
