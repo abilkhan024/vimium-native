@@ -9,7 +9,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
+    if !AXIsProcessTrusted() {
+      return print("AXIsProcessTrusted is false")
+    }
     AppEventManager.listen()
+    print("Started")
   }
 
   func applicationWillTerminate(_ notification: Notification) {

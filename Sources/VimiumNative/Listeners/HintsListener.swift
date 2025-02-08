@@ -23,7 +23,7 @@ class HintListener: Listener {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
 
     return flags.contains(.maskCommand) && flags.contains(.maskShift)
-      && (keyCode == Keys.dot.rawValue || keyCode == Keys.comma.rawValue)
+      && keyCode == Keys.dot.rawValue
   }
 
   func callback(_ event: CGEvent) {
@@ -52,8 +52,6 @@ class HintListener: Listener {
       renderHints(visibleEls)
       hintsWindow.makeKeyAndOrderFront(nil)
       break
-    case Keys.comma.rawValue:
-      return onClose()
     default:
       print("Impossible case exectued")
     }
@@ -104,7 +102,7 @@ class HintListener: Listener {
       hintsWindow.makeKeyAndOrderFront(nil)
     }
     NSCursor.hide()
-    print("Hiding")
+    print("Rendering \(els.count)")
   }
 
   private func getChar(from event: CGEvent) -> String? {
@@ -147,7 +145,9 @@ class HintListener: Listener {
 
   private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
     let seq = genLabels(from: count, using: AppOptions.load().hintChars)
-    var hint = HintElement(id: seq[idx], axui: el, content: AXUIElementUtils.toString(el))
+    let id = seq[idx]
+    // let id = AXUIElementUtils.toString(el) ?? "Unkown"
+    var hint = HintElement(id: id, axui: el, content: AXUIElementUtils.toString(el))
     if let point = AXUIElementUtils.getPoint(el),
       let size = AXUIElementUtils.getSize(el)
     {

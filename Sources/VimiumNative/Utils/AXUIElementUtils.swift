@@ -5,12 +5,12 @@ import SwiftUI
 class AXUIElementUtils {
   static func toString(_ el: AXUIElement) -> String? {
     let components = [
-      // getAttributeString(el, kAXRoleAttribute) ?? "",
-      // getAttributeString(el, kAXTitleAttribute) ?? "",
-      AXUIElementUtils.getAttributeString(el, kAXValueAttribute) ?? ""
+      getAttributeString(el, kAXRoleAttribute) ?? "",
+      getAttributeString(el, kAXTitleAttribute) ?? "",
+      getAttributeString(el, kAXValueAttribute) ?? "",
         // getAttributeString(el, kAXDescriptionAttribute) ?? "",
         // getAttributeString(el, kAXLabelValueAttribute) ?? "",
-    ].filter { !$0.isEmpty }
+    ].filter { str in !str.isEmpty }
     return components.isEmpty ? nil : components.joined(separator: ", ")
   }
 
@@ -77,6 +77,10 @@ class AXUIElementUtils {
     else {
       return nil
     }
+
+    // print(
+    //   "Pos for \(self.toString(el) ?? "Unkown") | \(parentRect.maxX)  \(elRect.maxX), \(parentRect.maxY) \(elRect.maxY), \(parentRect.minX)  \(elRect.minX), \(parentRect.minY)  \(elRect.minY) "
+    // )
 
     return parentRect.maxX != elRect.maxX || parentRect.maxY != elRect.maxY
       || parentRect.minX != elRect.minX || parentRect.minY != elRect.minY
