@@ -103,6 +103,8 @@ class HintListener: Listener {
       hintsWindow.contentView = NSHostingView(rootView: AnyView(hintsView))
       hintsWindow.makeKeyAndOrderFront(nil)
     }
+    NSCursor.hide()
+    print("Hiding")
   }
 
   private func getChar(from event: CGEvent) -> String? {
@@ -140,7 +142,7 @@ class HintListener: Listener {
     )
     eventDown?.post(tap: .cghidEventTap)
     eventUp?.post(tap: .cghidEventTap)
-    print("Selecting \(el.id)")
+    print("Selecting \(el.id)")  // shortcut for click to current position again?
   }
 
   private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {

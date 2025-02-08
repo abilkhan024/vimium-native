@@ -23,7 +23,8 @@ struct HintsView: View {
           .frame(width: 36 * scale, height: 24 * scale)
           .background(.black)
           .clipShape(RoundedRectangle(cornerRadius: 4))
-          .overlay(Rectangle().stroke(.red, lineWidth: 2))
+          .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
+          .cornerRadius(4)
           .opacity(selected ? 1 : 0.75)
           .position(x: point.x + size.width / 2, y: point.y + size.height / 2)
         } else {

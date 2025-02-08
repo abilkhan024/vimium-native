@@ -24,7 +24,7 @@ class Window {
   func transparent() -> Window {
     window.isOpaque = false
     window.backgroundColor = .clear
-    window.level = .floating
+    window.level = .screenSaver
     window.ignoresMouseEvents = true
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     return self
