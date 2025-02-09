@@ -88,16 +88,17 @@ struct GridItemView: View {
   let hintHeight: CGFloat
 
   var body: some View {
-    let opacity = isMatching && isMatchingCount == 1 ? 1 : !isMatching ? 0 : 0.4  // Moved opacity calculation here
-
-    Text(text)
-      .font(.system(size: 16))
-      .foregroundColor(.red)
-      .frame(width: hintWidth, height: hintHeight)
-      .background(.black)
-      .clipShape(RoundedRectangle(cornerRadius: 4))
-      .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
-      .cornerRadius(4)  // This is redundant after clipShape
-      .opacity(opacity)
+    let opacity = isMatching && isMatchingCount == 1 ? 1 : !isMatching ? 0 : 0.6
+    GeometryReader { geo in
+      Text(text)
+        .font(.system(size: 16))
+        .foregroundColor(.red)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .frame(width: hintWidth, height: hintHeight)
+        .background(.black)
+        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
+        .cornerRadius(4)
+        .opacity(opacity)
+    }
   }
 }

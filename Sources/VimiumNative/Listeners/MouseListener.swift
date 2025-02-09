@@ -20,10 +20,13 @@ class MouseListener: Listener {
   }
 
   func callback(_ event: CGEvent) {
-    state.rows = Int(ceil(Window.get().native().frame.height / 20)) - 14
-    state.cols = Int(ceil(Window.get().native().frame.width / 36)) - 8
-    state.hintWidth = 36
-    state.hintHeight = 20
+    let height = Window.get().native().frame.height
+    let width = Window.get().native().frame.width
+    // TODO: make customizable currently set as warpd limits
+    state.rows = 26
+    state.cols = 26
+    state.hintWidth = width / CGFloat(state.cols)
+    state.hintHeight = height / CGFloat(state.rows)
     state.sequence = HintUtils.genLabels(from: state.rows * state.cols)
     state.matchingCount = state.sequence.count
     state.search = ""
@@ -82,13 +85,9 @@ class MouseListener: Listener {
         else { return selectAndClear() }
 
         let col = Double(index).truncatingRemainder(dividingBy: Double(state.cols))
-        let row = trunc(Double(index) / Double(state.rows))
-        let height = Window.get().native().frame.height
-        let width = Window.get().native().frame.width
-        let cellWidth = width / CGFloat(state.cols)
-        let cellHeight = height / CGFloat(state.cols)
-        let x: CGFloat = cellWidth * col + (cellWidth / 2)
-        let y: CGFloat = cellHeight * row + (cellHeight / 2)
+        let row = trunc(Double(index) / Double(state.cols))
+        let x: CGFloat = state.hintWidth * col + (state.hintWidth / 2)
+        let y: CGFloat = state.hintHeight * row + (state.hintHeight / 2)
 
         selectAndClear()
         return move(x: x, y: y)
