@@ -5,8 +5,8 @@ import SwiftUI
 class AXUIElementUtils {
   static func toString(_ el: AXUIElement) -> String? {
     let components = [
-      getAttributeString(el, kAXRoleAttribute) ?? "",
-      getAttributeString(el, kAXTitleAttribute) ?? "",
+      // getAttributeString(el, kAXRoleAttribute) ?? "",
+      // getAttributeString(el, kAXTitleAttribute) ?? "",
       getAttributeString(el, kAXValueAttribute) ?? "",
         // getAttributeString(el, kAXDescriptionAttribute) ?? "",
         // getAttributeString(el, kAXLabelValueAttribute) ?? "",

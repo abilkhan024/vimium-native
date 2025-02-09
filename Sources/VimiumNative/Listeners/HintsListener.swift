@@ -1,20 +1,13 @@
 import CoreGraphics
 import SwiftUI
 
-struct HintElement: Hashable {
-  var id: String
-  var axui: AXUIElement
-  var content: String?
-  var position: CGPoint?
-}
-
 @MainActor
 class HintListener: Listener {
   private var globalListener: GlobalListener?
   private let window = Window.get()
+  private let state = AppState.get()
 
   private var visibleEls: [HintElement] = []
-  private var renderedEls: [HintElement] = []
   private var input = ""
 
   func match(_ event: CGEvent) -> Bool {
@@ -42,14 +35,14 @@ class HintListener: Listener {
       self.visibleEls = visibleAxuis.enumerated().map { idx, el in
         axuiToHint(visibleAxuis.count, idx, el)
       }
+      state.renderedHints = self.visibleEls
       input = ""
       if let prev = globalListener {
         AppEventManager.remove(prev)
       }
       globalListener = GlobalListener(onEvent: self.onTyping)
       AppEventManager.add(globalListener!)
-      renderHints(visibleEls)
-      window.front().call()
+      window.render(AnyView(HintsView())).front().call()
       break
     default:
       print("Impossible case exectued")
@@ -66,16 +59,11 @@ class HintListener: Listener {
   }
 
   private func renderHints(_ els: [HintElement]) {
-    renderedEls = els
     if els.isEmpty {
-      window.clear().call()
-    } else {
-      window.render(AnyView(HintsView(els: els)))
-        .front()
-        .call()
+      window.hide().call()
     }
+    self.state.renderedHints = els
     NSCursor.hide()
-    print("Rendering \(els.count)")
   }
 
   private func searchEls(els: [HintElement], search: String) -> [HintElement] {
@@ -114,13 +102,13 @@ class HintListener: Listener {
     case Keys.esc.rawValue:
       return onClose()
     case Keys.dot.rawValue:
-      self.visibleEls = self.renderedEls.enumerated().map { (idx, el) in
-        axuiToHint(self.renderedEls.count, idx, el.axui)
+      self.visibleEls = self.state.renderedHints.enumerated().map { (idx, el) in
+        axuiToHint(self.state.renderedHints.count, idx, el.axui)
       }
       self.input = ""
       return renderHints(self.visibleEls)
     case Keys.enter.rawValue:
-      if let first = self.renderedEls.count == 1 ? self.renderedEls.first : nil {
+      if let first = self.state.renderedHints.count == 1 ? self.state.renderedHints.first : nil {
         self.selectEl(first)
       }
       return onClose()

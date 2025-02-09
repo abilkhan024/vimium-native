@@ -3,15 +3,13 @@ import Cocoa
 import SwiftUI
 
 struct HintsView: View {
-  let els: [HintElement]
-
-  init(els: [HintElement]) { self.els = els }
+  @ObservedObject var state = AppState.get()
 
   var body: some View {
     ZStack {
-      ForEach(els, id: \.self) { e in
+      ForEach(state.renderedHints, id: \.self) { e in
         if let position = AXUIElementUtils.getPosition(e.axui) {
-          let selected = els.count == 1
+          let selected = state.renderedHints.count == 1
           let scale = selected ? 1.2 : 1
           ZStack {
             Text(e.id)

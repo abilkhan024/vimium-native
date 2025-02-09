@@ -4,7 +4,7 @@ class HintUtils {
 
   static func genLabels(from n: Int) -> [String] {
     var result: [String] = labelSeq
-    let chars = AppOptions.load().hintChars.split(separator: "").map { sub in String(sub) }
+    let chars = AppOptions.get().hintChars.split(separator: "").map { sub in String(sub) }
     var q: [String] = chars
 
     if q.isEmpty {
