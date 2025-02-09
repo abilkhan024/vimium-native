@@ -18,6 +18,10 @@
 - Secondary selection allow to scroll through current selection using arrows
   - Sorting
 
+## Later down the road
+
+- Rewrite state management, by at least split by module in which it's used by
+
 # Development
 
 ## Build and run
