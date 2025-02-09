@@ -92,6 +92,10 @@ class MouseListener: Listener {
 
         selectAndClear()
         return move(x: x, y: y)
+      case Keys.backspace.rawValue:
+        self.state.search = String(self.state.search.dropLast())
+        state.matchingCount = state.sequence.filter { el in el.starts(with: state.search) }.count
+        return
       default:
         guard let char = SystemUtils.getChar(from: event) else { return }
         state.search.append(char)
