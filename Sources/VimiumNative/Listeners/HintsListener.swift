@@ -16,7 +16,6 @@ class HintListener: Listener {
   private var visibleEls: [HintElement] = []
   private var renderedEls: [HintElement] = []
   private var input = ""
-  private var labelSeq: [String] = []
 
   func match(_ event: CGEvent) -> Bool {
     let flags = event.flags
@@ -66,32 +65,6 @@ class HintListener: Listener {
     window.hide().call()
   }
 
-  private func genLabels(from n: Int, using _chars: String) -> [String] {
-    var result: [String] = labelSeq
-    let chars = _chars.split(separator: "").map { sub in String(sub) }
-    var q: [String] = chars
-
-    if q.isEmpty {
-      return result
-    }
-
-    while result.count < n {
-      let cur = q.first!
-      for char in chars {
-        let next = cur + char
-        result.append(next)
-        if result.count == n {
-          break
-        }
-        q.append(next)
-      }
-      q = Array(q.dropFirst())
-    }
-    labelSeq = result
-
-    return result
-  }
-
   private func renderHints(_ els: [HintElement]) {
     renderedEls = els
     if els.isEmpty {
@@ -103,20 +76,6 @@ class HintListener: Listener {
     }
     NSCursor.hide()
     print("Rendering \(els.count)")
-  }
-
-  private func getChar(from event: CGEvent) -> String? {
-    var unicodeString = [UniChar](repeating: 0, count: 4)
-    var length: Int = 0
-
-    event.keyboardGetUnicodeString(
-      maxStringLength: 4, actualStringLength: &length, unicodeString: &unicodeString)
-
-    if length > 0 {
-      return String(utf16CodeUnits: unicodeString, count: length)
-    }
-
-    return nil
   }
 
   private func searchEls(els: [HintElement], search: String) -> [HintElement] {
@@ -137,7 +96,7 @@ class HintListener: Listener {
   }
 
   private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
-    let seq = genLabels(from: count, using: AppOptions.load().hintChars)
+    let seq = HintUtils.genLabels(from: count)
     let id = seq[idx]
     var hint = HintElement(id: id, axui: el, content: AXUIElementUtils.toString(el))
     if let point = AXUIElementUtils.getPoint(el),
@@ -172,7 +131,7 @@ class HintListener: Listener {
       }
       return renderHints(searchEls(els: self.visibleEls, search: input))
     default:
-      guard let char = getChar(from: event) else { return }
+      guard let char = SystemUtils.getChar(from: event) else { return }
       input.append(char)
       return renderHints(searchEls(els: self.visibleEls, search: input))
     }

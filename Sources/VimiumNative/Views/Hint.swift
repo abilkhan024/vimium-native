@@ -2,7 +2,7 @@ import ApplicationServices
 import Cocoa
 import SwiftUI
 
-struct Hint: View {
+struct Hint: View, Hashable {
   private var content: String
   private var position: CGPoint
   private var fontSize: CGFloat

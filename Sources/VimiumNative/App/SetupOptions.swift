@@ -2,6 +2,7 @@
 @MainActor
 class AppOptions {
   let hintChars = "asdfghjklweruio"
+
   private static var loaded: AppOptions?
 
   static func load() -> AppOptions {

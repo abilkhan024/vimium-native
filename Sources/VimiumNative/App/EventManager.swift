@@ -17,6 +17,7 @@ enum Keys: Int64 {
   case k = 0x28
   case l = 0x25
   case v = 0x09
+  case m = 46
 }
 
 @MainActor

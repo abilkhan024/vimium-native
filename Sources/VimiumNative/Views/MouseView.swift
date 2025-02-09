@@ -4,14 +4,17 @@ import SwiftUI
 
 struct MouseView: View {
   let position: CGPoint
+  let length: CGFloat
 
-  init(position: CGPoint) { self.position = position }
+  init(position: CGPoint, length: CGFloat) {
+    self.position = position
+    self.length = length
+  }
 
   var body: some View {
-    Hint(content: "OD", position: CGPointMake(40, 40), fontSize: 16, width: 40, height: 20)
     Ellipse()
       .fill(Color.red)
-      .frame(width: 10, height: 10)
+      .frame(width: self.length, height: self.length)
       .position(self.position)
   }
 }

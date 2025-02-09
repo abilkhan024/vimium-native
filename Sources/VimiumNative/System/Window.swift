@@ -64,6 +64,5 @@ class Window {
 
   // Fake stub to prevent warning for unused result
   // Could potentially use for lazy eval
-  func call() {
-  }
+  func call() {}
 }
