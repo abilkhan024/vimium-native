@@ -9,6 +9,7 @@ class MouseListener: Listener {
   private var cursorPos = CGPointMake(420, 420)
 
   private let cursourLen: CGFloat = 10
+  private var tmp = false
   private var selected = false
 
   func match(_ event: CGEvent) -> Bool {
@@ -20,18 +21,27 @@ class MouseListener: Listener {
   }
 
   func callback(_ event: CGEvent) {
-    let height = Window.get().native().frame.height
-    let width = Window.get().native().frame.width
-    // TODO: make customizable currently set as warpd limits
-    state.rows = 26
-    state.cols = 26
-    state.hintWidth = width / CGFloat(state.cols)
-    state.hintHeight = height / CGFloat(state.rows)
-    state.sequence = HintUtils.genLabels(from: state.rows * state.cols)
-    state.matchingCount = state.sequence.count
-    state.search = ""
-    selected = false
-    window.render(AnyView(GridView())).front().call()
+    if !tmp {
+      let height = Window.get().native().frame.height
+      let width = Window.get().native().frame.width
+      // TODO: make customizable currently set as warpd limits
+      state.rows = 26
+      state.cols = 26
+      state.hintWidth = width / CGFloat(state.cols)
+      state.hintHeight = height / CGFloat(state.rows)
+      state.sequence = HintUtils.genLabels(from: state.rows * state.cols)
+      state.matchingCount = state.sequence.count
+      state.search = ""
+      selected = false
+
+      window.render(AnyView(GridView())).front().call()
+      tmp = true
+    } else {
+      window.front().call()
+      state.search = ""
+      selected = false
+      state.matchingCount = state.sequence.count
+    }
 
     if let prev = globalListener {
       AppEventManager.remove(prev)
@@ -54,6 +64,9 @@ class MouseListener: Listener {
     let view = MouseView(position: cursorPos, length: cursourLen)
     SystemUtils.move(cursorPos)
     window.render(AnyView(view)).front().call()
+    // TODO: works but i guess must spawn new window and bring to the front for
+    // the view instead of resetting
+    tmp = false
   }
 
   private func move(offsetX: Int, offsetY: Int, scale: Int) {
@@ -67,7 +80,7 @@ class MouseListener: Listener {
   private func selectAndClear() {
     selected = true
     state.search = ""
-    window.clear().hide().call()
+    window.hide().call()
   }
 
   private func onTyping(_ event: CGEvent) {
@@ -91,6 +104,7 @@ class MouseListener: Listener {
 
         selectAndClear()
         return move(x: x, y: y)
+      // TODO: maybe dissalow, because when removeing all, looks even worse
       case Keys.backspace.rawValue:
         self.state.search = String(self.state.search.dropLast())
         state.matchingCount = state.sequence.filter { el in el.starts(with: state.search) }.count
@@ -99,6 +113,7 @@ class MouseListener: Listener {
         guard let char = SystemUtils.getChar(from: event) else { return }
         state.search.append(char)
         state.matchingCount = state.sequence.filter { el in el.starts(with: state.search) }.count
+        // print(state.search)
         return
       }
     }

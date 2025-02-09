@@ -18,6 +18,8 @@
   - [x] Using reactivity for instead of remount of contentView
   - [ ] May be prerender initial view and keep at 0 opacity and increase
         opacity later?
+    - [ ] Keep render instance and bring them to the front, create some sort
+          window manager for each window, grid, labeled-hints
   - [ ] Introduce less intensive operations
     - [ ] For mouse
       - [ ] Custom amount of hitboxes larger the faster

@@ -2,7 +2,7 @@
 // TODO: Read .config later
 @MainActor
 class AppOptions {
-  let hintChars = "asdfghjklweruio"
+  let hintChars = "asdfghjklweruiozxcvbnmqp"
 
   private static var shared: AppOptions?
 
