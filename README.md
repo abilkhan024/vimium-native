@@ -10,6 +10,14 @@
 6. customization via .config file
 7. Reliable calling doesn't crash or stops
 
+---
+
+## Current priority
+
+- Need much faster render, and reevaluation on search for both grid and hints
+- Secondary selection allow to scroll through current selection using arrows
+  - Sorting
+
 # Development
 
 ## Build and run
