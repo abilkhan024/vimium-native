@@ -15,6 +15,16 @@
 ## Current priority
 
 - Need much faster render, and reevaluation on search for both grid and hints
+  - [x] Using reactivity for instead of remount of contentView
+  - [ ] May be prerender initial view and keep at 0 opacity and increase
+        opacity later?
+  - [ ] Introduce less intensive operations
+    - [ ] For mouse
+      - [ ] Custom amount of hitboxes larger the faster
+    - [ ] For hints
+      - [ ] Remove redundant for hints (e.g. if parent has valid children no need
+            for parent? (arguable))
+      - [ ] Select by mode (interactive, interactive text, lazy loaded text)?
 - Secondary selection allow to scroll through current selection using arrows
   - Sorting
 
