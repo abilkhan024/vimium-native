@@ -4,8 +4,8 @@ import SwiftUI
 @MainActor
 class GridWindowManager {
   enum Window: Int {
-    case Hints = 0
-    case Mouse = 1
+    case hints = 0
+    case mouse = 1
   }
 
   private static let shared = GridWindowManager()

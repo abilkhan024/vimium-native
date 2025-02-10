@@ -35,6 +35,12 @@
 - Rewrite state management, by at least split by module in which it's used by
 - Change to rcmd + / later with some key like s
 
+# Navigation
+
+- Features
+  - Grid meaning hints are in grid view
+  - FzFind meaning FuzzyFind
+
 # Development
 
 ## Build and run

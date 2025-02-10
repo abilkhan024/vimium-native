@@ -5,7 +5,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   override init() {
     super.init()
-    AppEventManager.add(HintListener())
+    AppEventManager.add(FzFindListener())
     AppEventManager.add(GridListener())
   }
 

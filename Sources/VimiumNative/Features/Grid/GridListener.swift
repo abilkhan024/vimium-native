@@ -8,8 +8,8 @@ class GridListener: Listener {
   private let hintsState = GridHintsState.shared
   private let mouseState = GridMouseState.shared
 
-  private let hintsWindow = GridWindowManager.get(.Hints)
-  private let mouseWindow = GridWindowManager.get(.Mouse)
+  private let hintsWindow = GridWindowManager.get(.hints)
+  private let mouseWindow = GridWindowManager.get(.mouse)
 
   private let cursourLen: CGFloat = 10
   private var hintSelected = false
