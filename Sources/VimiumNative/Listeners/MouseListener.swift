@@ -5,7 +5,7 @@ import SwiftUI
 class MouseListener: Listener {
   private let window = Window.get()
   private let state = AppState.get()
-  private var globalListener: GlobalListener?
+  private var appListener: AppListener?
   private var cursorPos = CGPointMake(420, 420)
 
   private let cursourLen: CGFloat = 10
@@ -29,7 +29,7 @@ class MouseListener: Listener {
       state.cols = 26
       state.hintWidth = width / CGFloat(state.cols)
       state.hintHeight = height / CGFloat(state.rows)
-      state.sequence = HintUtils.genLabels(from: state.rows * state.cols)
+      state.sequence = HintUtils.getLabels(from: state.rows * state.cols)
       state.matchingCount = state.sequence.count
       state.search = ""
       selected = false
@@ -43,17 +43,17 @@ class MouseListener: Listener {
       state.matchingCount = state.sequence.count
     }
 
-    if let prev = globalListener {
+    if let prev = appListener {
       AppEventManager.remove(prev)
     }
-    globalListener = GlobalListener(onEvent: self.onTyping)
-    AppEventManager.add(globalListener!)
+    appListener = AppListener(onEvent: self.onTyping)
+    AppEventManager.add(appListener!)
   }
 
   private func onClose() {
-    if let listener = globalListener {
+    if let listener = appListener {
       AppEventManager.remove(listener)
-      globalListener = nil
+      appListener = nil
     }
     selectAndClear()
   }
@@ -93,7 +93,7 @@ class MouseListener: Listener {
         return onClose()
       case Keys.enter.rawValue:
         guard
-          let index = HintUtils.genLabels(from: state.rows * state.cols)
+          let index = HintUtils.getLabels(from: state.rows * state.cols)
             .firstIndex(where: { e in e.starts(with: self.state.search) })
         else { return selectAndClear() }
 

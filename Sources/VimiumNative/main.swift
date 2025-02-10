@@ -6,7 +6,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   override init() {
     super.init()
     AppEventManager.add(HintListener())
-    AppEventManager.add(MouseListener())
+    AppEventManager.add(GridListener())
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {

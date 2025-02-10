@@ -84,3 +84,22 @@ class AppEventManager {
     }
   }
 }
+
+/// Listens to all key strokes usage assumes there will be declared some sort
+/// of term key to stop it
+@MainActor
+class AppListener: Listener {
+  let onEvent: (_ event: CGEvent) -> Void
+
+  init(onEvent: @escaping (_ event: CGEvent) -> Void) {
+    self.onEvent = onEvent
+  }
+
+  func match(_ event: CGEvent) -> Bool {
+    return true
+  }
+
+  func callback(_ event: CGEvent) {
+    onEvent(event)
+  }
+}

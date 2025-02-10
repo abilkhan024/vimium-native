@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 class HintListener: Listener {
-  private var globalListener: GlobalListener?
+  private var appListener: AppListener?
   private let window = Window.get()
   private let state = AppState.get()
 
@@ -37,11 +37,11 @@ class HintListener: Listener {
       }
       state.renderedHints = self.visibleEls
       input = ""
-      if let prev = globalListener {
+      if let prev = appListener {
         AppEventManager.remove(prev)
       }
-      globalListener = GlobalListener(onEvent: self.onTyping)
-      AppEventManager.add(globalListener!)
+      appListener = AppListener(onEvent: self.onTyping)
+      AppEventManager.add(appListener!)
       window.render(AnyView(HintsView())).front().call()
       break
     default:
@@ -50,9 +50,9 @@ class HintListener: Listener {
   }
 
   private func onClose() {
-    if let listener = globalListener {
+    if let listener = appListener {
       AppEventManager.remove(listener)
-      globalListener = nil
+      appListener = nil
     }
     input = ""
     window.hide().call()
@@ -84,7 +84,7 @@ class HintListener: Listener {
   }
 
   private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
-    let seq = HintUtils.genLabels(from: count)
+    let seq = HintUtils.getLabels(from: count)
     let id = seq[idx]
     var hint = HintElement(id: id, axui: el, content: AXUIElementUtils.toString(el))
     if let point = AXUIElementUtils.getPoint(el),

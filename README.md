@@ -33,6 +33,7 @@
 ## Later down the road
 
 - Rewrite state management, by at least split by module in which it's used by
+- Change to rcmd + / later with some key like s
 
 # Development
 
