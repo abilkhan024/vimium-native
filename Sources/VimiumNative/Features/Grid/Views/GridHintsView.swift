@@ -68,7 +68,7 @@ struct GridHintsRowView: View {
     ForEach(0..<self.cols, id: \.self) { j in
       let idx = self.i * cols + j
 
-      GridItemView(
+      GridHintItemView(
         text: self.sequence[idx],
         isMatching: self.sequence[idx].starts(with: self.search),
         isMatchingCount: self.matchingCount,

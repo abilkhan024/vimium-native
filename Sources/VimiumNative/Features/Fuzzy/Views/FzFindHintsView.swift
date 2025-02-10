@@ -4,9 +4,28 @@ import SwiftUI
 
 struct FzFindHintsView: View {
   @ObservedObject var state = FzFindState.shared
+  @State private var progress: CGFloat = 0
 
   var body: some View {
     GeometryReader { geo in
+      ZStack {
+        if true {
+          ProgressView(value: progress, total: 100)
+            .progressViewStyle(LinearProgressViewStyle(tint: .blue))  // Customize the color
+            .frame(width: geo.size.width, height: 4, alignment: .bottom)  // Adjust the width
+            .scaleEffect(x: 1, y: 0.5, anchor: .center)  // Make it thinner
+            .padding()
+            .onAppear {
+              withAnimation(.linear(duration: 2)) {  // 2-second animation
+                self.progress = 100
+              }
+            }
+            .onDisappear {
+              progress = 0  // Reset for the next time it appears
+            }
+        }
+      }.animation(.default, value: true)
+
       ZStack {
         ForEach(state.hints, id: \.self) { e in
           if let position = AXUIElementUtils.getPosition(e.axui) {
@@ -29,7 +48,6 @@ struct FzFindHintsView: View {
           }
         }
       }.frame(width: geo.size.width, height: geo.size.height)
-
     }
   }
 }

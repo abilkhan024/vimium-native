@@ -11,8 +11,6 @@ class FzFindListener: Listener {
   private var input = ""
 
   init() {
-    self.reval()
-
     // something like this but doesn't block and works better?
     // Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
     //   DispatchQueue.global(qos: .background).asyncAfter(deadline: .now()) {  // Example: Delay by 100ms
@@ -27,6 +25,7 @@ class FzFindListener: Listener {
   }
 
   private func reval() {
+    state.loading = true
     guard let els = ListElementsAction().exec() else {
       print("Failed to get AXUIs")
       return
@@ -39,7 +38,7 @@ class FzFindListener: Listener {
       return visible
     }.enumerated().map { idx, el in self.axuiToHint(els.count, idx, el) }
     self.state.hints = self.visibleEls
-
+    state.loading = false
   }
 
   func match(_ event: CGEvent) -> Bool {
@@ -51,8 +50,6 @@ class FzFindListener: Listener {
   }
 
   func callback(_ event: CGEvent) {
-    // let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-    // reval()
     input = ""
     if let prev = appListener {
       AppEventManager.remove(prev)
@@ -60,9 +57,11 @@ class FzFindListener: Listener {
     appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(appListener!)
 
-    print(state.hints.count, "rendered")
+    DispatchQueue.main.async {
+      self.reval()
+      print(self.state.hints.count, "rendered")
+    }
     hintsWindow.front().call()
-    print(hintsWindow.native().frame.width, hintsWindow.native().frame.height)
 
     // switch keyCode {
     // case Keys.dot.rawValue:
@@ -92,7 +91,6 @@ class FzFindListener: Listener {
         AppEventManager.remove(listener)
         self.appListener = nil
       }
-      self.state.hints = []
       self.input = ""
       self.reval()
     }
@@ -137,7 +135,7 @@ class FzFindListener: Listener {
     if search.isEmpty {
       return els
     }
-    let lower = search.lowercased()
+    // let lower = search.lowercased()
 
     return els.filter { (e) in
       e.id.lowercased().starts(

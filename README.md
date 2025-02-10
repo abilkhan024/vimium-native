@@ -30,6 +30,30 @@
 - Secondary selection allow to scroll through current selection using arrows
   - Sorting
 
+```swift
+// For faster chagne detection keep track of every
+// element in some internal ds and show current ready state
+// and revalidate if need more append new hints, 
+// keeping all the previous with the same label, you could cmp
+var updated = false
+var count = 0
+observer = app.createObserver { (observer: Observer, element: UIElement, event: AXNotification, info: [String: AnyObject]?) in
+    // var elementDesc: String!
+    count += 1
+    print(event, count, element.description)
+}
+
+try observer.addNotification(.created, forElement: app)
+try observer.addNotification(.moved, forElement: app)
+try observer.addNotification(.layoutChanged, forElement: app)
+try observer.addNotification(.valueChanged, forElement: app)
+try observer.addNotification(.selectedChildrenMoved, forElement: app)
+try observer.addNotification(.titleChanged, forElement: app)
+try observer.addNotification(.uiElementDestroyed, forElement: app)
+
+// still don't know how to address
+```
+
 ## Later down the road
 
 - Rewrite state management, by at least split by module in which it's used by

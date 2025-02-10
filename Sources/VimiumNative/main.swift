@@ -24,4 +24,5 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 let delegate = AppDelegate()
 NSApplication.shared.delegate = delegate
+NSApplication.shared.setActivationPolicy(NSApplication.ActivationPolicy.accessory)
 NSApplication.shared.run()
