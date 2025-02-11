@@ -8,26 +8,9 @@ struct HintElement: Hashable {
 }
 
 @MainActor
-class AppState: ObservableObject {
-  private static var shared: AppState?
-  @Published var renderedHints: [HintElement] = []
+final class AppState: ObservableObject {
+  var observer: AxObserver?
 
-  @Published var sequence: [String] = []
-  @Published var search = ""
-  @Published var matchingCount = 0
-  @Published var rows = 0
-  @Published var cols = 0
-  @Published var hintWidth: CGFloat = 0
-  @Published var hintHeight: CGFloat = 0
-
+  static let shared = AppState()
   private init() {}
-
-  static func get() -> AppState {
-    guard let singletone = shared else {
-      let instance = AppState()
-      shared = instance
-      return instance
-    }
-    return singletone
-  }
 }

@@ -2,31 +2,21 @@ import Cocoa
 import Darwin
 import Foundation
 
-private func internalCallback(
-  _ axObserver: AXObserver,
-  axElement: AXUIElement,
-  notification: CFString,
-  userData: UnsafeMutableRawPointer?
-) {
-  print("Got update", axElement)
-  // guard let userData = userData else { fatalError("userData should be an AXSwift.Observer") }
-  // let observer = Unmanaged<AXUIObserver>.fromOpaque(userData).takeUnretainedValue()
-  // let element = UIElement(axElement)
-  // guard let notif = AXNotification(rawValue: notification as String) else {
-  //   NSLog("Unknown AX notification %s received", notification as String)
-  //   return
-  // }
-  // observer.callback!(observer, element, notif)
-}
-
 enum AppError: Error {
   case runtimeError(String)
 }
 
 class AxObserver {
+  public typealias Notifier = (
+    // _ observer: Observer,
+    // _ element: UIElement,
+    // _ notification: AXNotification
+  ) -> Void
   var axObserver: AXObserver?
+  let notify: Notifier
 
-  public init(pid: pid_t) {
+  public init(pid: pid_t, notify: @escaping Notifier) {
+    self.notify = notify
     var axObserver: AXObserver?
     let error = AXObserverCreate(pid, internalCallback, &axObserver)
     if error == .success {
@@ -66,5 +56,16 @@ class AxObserver {
     }
     print("Got error \(error)")
   }
+}
 
+private func internalCallback(
+  _ axObserver: AXObserver,
+  _ axElement: AXUIElement,
+  _ notification: CFString,
+  _ userData: UnsafeMutableRawPointer?
+) {
+  guard let userData = userData else { fatalError("userData should be an AXSwift.Observer") }
+
+  let observer = Unmanaged<AxObserver>.fromOpaque(userData).takeUnretainedValue()
+  observer.notify()
 }
