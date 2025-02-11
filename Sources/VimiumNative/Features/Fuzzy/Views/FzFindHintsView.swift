@@ -28,7 +28,7 @@ struct FzFindHintsView: View {
 
       ZStack {
         ForEach(state.hints, id: \.self) { e in
-          if let position = AXUIElementUtils.getPosition(e.axui) {
+          if let position = AxElementUtils.getPosition(e.axui) {
             let selected = state.hints.count == 1
             let scale = selected ? 1.2 : 1
             ZStack {

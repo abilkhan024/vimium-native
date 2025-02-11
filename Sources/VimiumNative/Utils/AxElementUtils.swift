@@ -2,7 +2,7 @@ import ApplicationServices
 import Cocoa
 import SwiftUI
 
-class AXUIElementUtils {
+class AxElementUtils {
   static func toString(_ el: AXUIElement) -> String? {
     let components = [
       // getAttributeString(el, kAXRoleAttribute) ?? "",

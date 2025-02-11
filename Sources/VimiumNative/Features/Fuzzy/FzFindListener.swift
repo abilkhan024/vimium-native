@@ -32,7 +32,7 @@ class FzFindListener: Listener {
     }
 
     self.visibleEls = els.filter { (el) in
-      guard let visible = AXUIElementUtils.isInViewport(el) else {
+      guard let visible = AxElementUtils.isInViewport(el) else {
         return false
       }
       return visible
@@ -74,9 +74,9 @@ class FzFindListener: Listener {
   private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
     let seq = HintUtils.getLabels(from: count)
     let id = seq[idx]
-    var hint = HintElement(id: id, axui: el, content: AXUIElementUtils.toString(el))
-    if let point = AXUIElementUtils.getPoint(el),
-      let size = AXUIElementUtils.getSize(el)
+    var hint = HintElement(id: id, axui: el, content: AxElementUtils.toString(el))
+    if let point = AxElementUtils.getPoint(el),
+      let size = AxElementUtils.getSize(el)
     {
       hint.position = CGPointMake(point.x + size.width / 2, point.y + size.height / 2)
     }

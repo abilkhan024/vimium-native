@@ -28,7 +28,7 @@ class ListElementsAction {
 
     for el in windows {
       els.append(el)
-      if let role = AXUIElementUtils.getAttributeString(el, kAXRoleAttribute), role == "AXWindow" {
+      if let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute), role == "AXWindow" {
         break
       }
     }
