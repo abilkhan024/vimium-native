@@ -53,7 +53,15 @@ class ListElementsAction {
     return result
   }
 
+  let test = [
+    "AXButton",
+    "AXLink",
+  ]
   private func dfs(from element: AXUIElement) -> [AXUIElement] {
+    if let role = AxElementUtils.getAttributeString(element, kAXRoleAttribute), test.contains(role)
+    {
+      return []
+    }
     var els: [AXUIElement] = []
 
     var children: CFTypeRef?
@@ -80,20 +88,6 @@ class ListElementsAction {
       print("No current application running")
       return nil
     }
-
-    // AppState.shared.observer?.stop()
-    // AppState.shared.observer = nil
-    // let observer = AxObserver(
-    //   pid: app.processIdentifier,
-    //   notify: { print("Notified") })
-    // let appEl = AXUIElementCreateApplication(app.processIdentifier)
-    // observer.addNotification("AXCreated" as CFString, forElement: appEl)
-    // observer.addNotification("AXMoved" as CFString, forElement: appEl)
-    // observer.addNotification("AXValueChanged" as CFString, forElement: appEl)
-    // observer.addNotification("AXTitleChanged" as CFString, forElement: appEl)
-    // observer.addNotification("AXUIElementDestroyed" as CFString, forElement: appEl)
-    // observer.addNotification("AXLayoutChanged" as CFString, forElement: appEl)
-    // AppState.shared.observer = observer
 
     return getInteractiveElements(for: app)
   }

@@ -5,11 +5,11 @@ import SwiftUI
 class AxElementUtils {
   static func toString(_ el: AXUIElement) -> String? {
     let components = [
-      // getAttributeString(el, kAXRoleAttribute) ?? "",
-      // getAttributeString(el, kAXTitleAttribute) ?? "",
-      getAttributeString(el, kAXValueAttribute) ?? ""
-        // getAttributeString(el, kAXDescriptionAttribute) ?? "",
-        // getAttributeString(el, kAXLabelValueAttribute) ?? "",
+      getAttributeString(el, kAXRoleAttribute) ?? "",
+      getAttributeString(el, kAXTitleAttribute) ?? "",
+      getAttributeString(el, kAXValueAttribute) ?? "",
+      getAttributeString(el, kAXDescriptionAttribute) ?? "",
+      getAttributeString(el, kAXLabelValueAttribute) ?? "",
     ].filter { str in !str.isEmpty }
     return components.isEmpty ? nil : components.joined(separator: ", ")
   }
@@ -80,35 +80,7 @@ class AxElementUtils {
   }
 
   static func isInViewport(_ el: AXUIElement) -> Bool? {
-    guard let parent = getParent(el), let parentRect = getBoundingRect(parent),
-      let elPos = getPosition(el), let elRect = getBoundingRect(el)
-    else { return nil }
-
-    let eq = [
-      elRect.minX == parentRect.minX,
-      elRect.maxX == parentRect.maxX,
-      elRect.minY == parentRect.minY,
-      elRect.maxY == parentRect.maxY,
-    ].filter { el in el }.count
-
-    let maxWidth: CGFloat = 1440
-    let maxHeight: CGFloat = 920
-    // for fuck sake!!!!!!!!!!!!!!!!!!!!!!!!
-    // if eq == 4 {
-    //   print(parentRect.minX, parentRect.maxX)
-    // }
-    // if eq == 4 && parentRect.minX == 0
-    //   && parentRect.maxY == 0
-    // {
-    //   return false
-    // }
-
-    return elPos.x < parentRect.maxX
-      && elPos.x > parentRect.minX
-      && elPos.y < parentRect.maxY
-      && elPos.y > parentRect.minY
-      && elRect.minX >= parentRect.minX
-      && elRect.maxX <= parentRect.maxX
-      && elRect.minY >= parentRect.minY
+    guard let elRect = getBoundingRect(el) else { return nil }
+    return elRect.maxX - elRect.minX > 1 && elRect.maxY - elRect.minY > 1
   }
 }

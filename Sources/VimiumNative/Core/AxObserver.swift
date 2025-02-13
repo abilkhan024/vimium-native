@@ -8,9 +8,10 @@ enum AppError: Error {
 
 class AxObserver {
   public typealias Notifier = (
-    // _ observer: Observer,
-    // _ element: UIElement,
-    // _ notification: AXNotification
+    _ axObserver: AXObserver,
+    _ axElement: AXUIElement,
+    _ notification: CFString,
+    _ userData: AxObserver
   ) -> Void
   var axObserver: AXObserver?
   let notify: Notifier
@@ -43,29 +44,37 @@ class AxObserver {
   }
 
   public func addNotification(
-    _ notification: CFString,
+    _ notification: String,
     forElement element: AXUIElement
-  ) {
-    guard let observer = axObserver else { return }
+  ) -> Bool {
+    guard let observer = axObserver else { return false }
     let selfPtr = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
     let error = AXObserverAddNotification(
-      observer, element, notification, selfPtr
+      observer, element, notification as CFString, selfPtr
     )
     if error == .success || error == .notificationAlreadyRegistered {
-      return
+      return true
     }
-    print("Got error \(error)")
+    print("Got error \(error) \(notification)")
+    return false
   }
 }
 
 private func internalCallback(
   _ axObserver: AXObserver,
-  _ axElement: AXUIElement,
+  _ e: AXUIElement,
   _ notification: CFString,
   _ userData: UnsafeMutableRawPointer?
 ) {
+  print(
+    "Notifing \(notification) for \(e) with string \(AxElementUtils.toString(e) ?? "...")")
   guard let userData = userData else { fatalError("userData should be an AXSwift.Observer") }
 
   let observer = Unmanaged<AxObserver>.fromOpaque(userData).takeUnretainedValue()
-  observer.notify()
+  observer.notify(
+    axObserver,
+    e,
+    notification,
+    observer
+  )
 }
