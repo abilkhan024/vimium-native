@@ -24,6 +24,7 @@ class FzFindFastListener: Listener {
   var elsPointer = UnsafeMutablePointer<[AXUIElement]>.allocate(capacity: 1)
 
   init() {
+
     // print(NSScreen.screens.first?.frame.maxX, NSScreen.screens.first?.frame.maxY)
 
     // 90 * 20
@@ -231,110 +232,122 @@ class FzFindFastListener: Listener {
 
   func callback(_ event: CGEvent) {
     // DispatchQueue.global(qos: .userInteractive).async {
-    let ignoredActions = [
-      "AXShowMenu",
-      "AXScrollToVisible",
-      "AXShowDefaultUI",
-      "AXShowAlternateUI",
-    ]
+    DispatchQueue.main.async {
+      let ignoredActions = [
+        "AXShowMenu",
+        "AXScrollToVisible",
+        "AXShowDefaultUI",
+        "AXShowAlternateUI",
+      ]
 
-    func testRawBFS() -> [AXUIElement] {
-      func isHintable(_ el: AXUIElement) -> Bool {
-        guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else {
-          return false
-        }
-        if role == "AXRow" {
-          print("Wow")
-        }
-        if role == "AXWindow" || role == "AXScrollArea" {
-          return false
-        }
+      @MainActor
+      func testRawBFS() -> [AXUIElement] {
+        func isHintable(_ el: AXUIElement) -> Bool {
+          guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else {
+            return false
+          }
+          if role == "AXRow" {
+            print("Wow")
+          }
+          if role == "AXWindow" || role == "AXScrollArea" {
+            return false
+          }
 
-        return isActionable(el) || isRowWithoutHintableChildren(el)
-      }
-      func isActionable(_ el: AXUIElement) -> Bool {
-        var names: CFArray?
-        let error = AXUIElementCopyActionNames(el, &names)
-
-        if error == .noValue || error == .attributeUnsupported {
-          return false
+          return isActionable(el) || isRowWithoutHintableChildren(el)
         }
+        func isActionable(_ el: AXUIElement) -> Bool {
+          var names: CFArray?
+          let error = AXUIElementCopyActionNames(el, &names)
 
-        if error != .success {
-          return false
-        }
-        let actions = names! as [AnyObject] as! [String]
-        var count = 0
-        for ignored in ignoredActions {
-          for action in actions {
-            if action == ignored {
-              count += 1
+          if error == .noValue || error == .attributeUnsupported {
+            return false
+          }
+
+          if error != .success {
+            return false
+          }
+          let actions = names! as [AnyObject] as! [String]
+          var count = 0
+          for ignored in ignoredActions {
+            for action in actions {
+              if action == ignored {
+                count += 1
+              }
             }
           }
-        }
-        if AxElementUtils.getPoint(el)?.y == 121.0, AxElementUtils.isInViewport(el) == true,
-          let rect = AxElementUtils.getBoundingRect(el), let str = AxElementUtils.toString(el),
-          actions.count > count
-        {
-          // print("--- \(str) | \(actions), \(rect.minX) \(rect.minY) \(rect.maxX) \(rect.maxY)")
-        }
-
-        return actions.count > count
-      }
-      func isRowWithoutHintableChildren(_ el: AXUIElement) -> Bool {
-        return false
-      }
-
-      let app = NSWorkspace.shared.frontmostApplication!
-      let start = DispatchTime.now().uptimeNanoseconds
-
-      let pid = app.processIdentifier
-
-      let el = AXUIElementCreateApplication(pid)
-      var els: [AXUIElement] = []
-
-      var stack = [el]
-      while !stack.isEmpty {
-        let sub = stack.popLast()!
-        if let point = AxElementUtils.getPoint(sub) {
-          print(point)  // if child is not in viewport then ignore?
-        }
-        if isHintable(sub), AxElementUtils.isInViewport(sub) == true {
-          els.append(sub)
-          if let point = AxElementUtils.getPoint(sub), point.y == 121.0,
-            let rect = AxElementUtils.getBoundingRect(sub), let str = AxElementUtils.toString(sub)
+          if AxElementUtils.getPoint(el)?.y == 121.0, AxElementUtils.isInViewport(el) == true,
+            let rect = AxElementUtils.getBoundingRect(el), let str = AxElementUtils.toString(el),
+            actions.count > count
           {
-            // print("\(str)| \(rect.minX) \(rect.minY) \(rect.maxX) \(rect.maxY)")
+            // print("--- \(str) | \(actions), \(rect.minX) \(rect.minY) \(rect.maxX) \(rect.maxY)")
           }
+
+          return actions.count > count
+        }
+        func isRowWithoutHintableChildren(_ el: AXUIElement) -> Bool {
+          return false
         }
 
-        var children: CFTypeRef?
-        let childResult = AXUIElementCopyAttributeValue(
-          sub, kAXChildrenAttribute as CFString, &children)
+        let app = NSWorkspace.shared.frontmostApplication!
+        let start = DispatchTime.now().uptimeNanoseconds
 
-        if childResult == .success, let childrenEls = children as? [AXUIElement] {
-          stack.append(contentsOf: childrenEls)
+        let pid = app.processIdentifier
+
+        let appEl = AXUIElementCreateApplication(pid)
+        var els: [AXUIElement] = []
+        let h = self.hintsWindow.native().frame.height
+        let w = self.hintsWindow.native().frame.width
+
+        var stack = [appEl]
+        while !stack.isEmpty {
+          let sub = stack.popLast()!
+          // if let point = AxElementUtils.getPoint(sub) {
+          //   print(point)  // if child is not in viewport then ignore?
+          // }
+          let visible = AxElementUtils.isInViewport(sub, w, h)
+          if isHintable(sub) && visible == true {
+            els.append(sub)
+            // if let point = AxElementUtils.getPoint(sub), point.y == 121.0,
+            //   let rect = AxElementUtils.getBoundingRect(sub), let str = AxElementUtils.toString(sub)
+            // {
+            // print("\(str)| \(rect.minX) \(rect.minY) \(rect.maxX) \(rect.maxY)")
+            // }
+          }
+
+          if visible != false {
+            var children: CFTypeRef?
+            let childResult = AXUIElementCopyAttributeValue(
+              sub, kAXChildrenAttribute as CFString, &children)
+
+            if childResult == .success, let childrenEls = children as? [AXUIElement] {
+              stack.append(contentsOf: childrenEls)
+            }
+          } else {
+            if AxElementUtils.getAttributeString(sub, kAXRoleAttribute) == "AXGroup" {
+              let rect = AxElementUtils.getBoundingRect(sub)
+              print(rect?.height, rect?.width)
+              print("\(rect?.minX), \(rect?.maxX), \(rect?.minY), \(rect?.maxY)")
+            }
+            print("\(AxElementUtils.toString(sub) ?? "No str")")
+          }
+          // if parent rect is visible
         }
+
+        return els
       }
+      let start = DispatchTime.now().uptimeNanoseconds
+      self.els = testRawBFS()
+      self.state.hints = self.els.map { e in AxElement(e) }
+      self.state.texts = HintUtils.getLabels(from: self.els.count)
+      self.hintsWindow.front().call()
+      if let prev = self.appListener {
+        AppEventManager.remove(prev)
+      }
+      self.appListener = AppListener(onEvent: self.onTyping)
+      AppEventManager.add(self.appListener!)
 
-      // print("Took \(DispatchTime.now().uptimeNanoseconds - start) Got \(els.count)")
-      return els
+      print("Took \(DispatchTime.now().uptimeNanoseconds - start) Got \(self.els.count)")
     }
-    // }
-
-    let start = DispatchTime.now().uptimeNanoseconds
-    let els = testRawBFS()
-
-    self.els = testRawBFS()
-    state.hints = els.map { e in AxElement(e) }
-    state.texts = HintUtils.getLabels(from: els.count)
-    hintsWindow.front().call()
-    print("Took \(DispatchTime.now().uptimeNanoseconds - start) \(els.count)")
-    if let prev = appListener {
-      AppEventManager.remove(prev)
-    }
-    appListener = AppListener(onEvent: self.onTyping)
-    AppEventManager.add(appListener!)
 
     // AppState.shared.observer = AxObserver(
     //   pid: pid,
@@ -469,7 +482,6 @@ class FzFindFastListener: Listener {
 
   private func onTyping(_ event: CGEvent) {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-    print(keyCode)
     switch keyCode {
     case Keys.esc.rawValue:
       return onClose()

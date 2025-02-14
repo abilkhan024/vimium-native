@@ -81,6 +81,14 @@ class AxElementUtils {
 
   static func isInViewport(_ el: AXUIElement) -> Bool? {
     guard let elRect = getBoundingRect(el) else { return nil }
-    return elRect.maxX - elRect.minX > 1 && elRect.maxY - elRect.minY > 1
+    return elRect.height > 1 && elRect.width > 1
+  }
+
+  static func isInViewport(_ el: AXUIElement, _ w: CGFloat, _ h: CGFloat) -> Bool? {
+    guard let elRect = getBoundingRect(el) else { return nil }
+    if elRect.height == h || elRect.width == w {
+      return true
+    }
+    return elRect.height > 1 && elRect.width > 1
   }
 }
