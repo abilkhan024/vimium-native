@@ -11,7 +11,6 @@ struct HintElement: Hashable {
 final class AppState {
   var observer: AxObserver?
   var axMap: [AXUIElement: AxElement] = [:]
-  var axApps: [pid_t: AxApp] = [:]
 
   static let shared = AppState()
   private init() {}

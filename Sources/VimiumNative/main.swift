@@ -5,8 +5,8 @@ import SwiftUI
 class AppDelegate: NSObject, NSApplicationDelegate {
   override init() {
     super.init()
-    // AppEventManager.add(FzFindListener())
-    AppEventManager.add(FzFindFastListener())
+    AppEventManager.add(FzFindListener())
+    // AppEventManager.add(FzFindFastListener())
     // AppEventManager.add(GridListener())
   }
 

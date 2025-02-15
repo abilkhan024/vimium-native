@@ -26,26 +26,25 @@ struct FzFindHintsView: View {
         }
       }.animation(.default, value: true)
 
+      let points = state.hints.map { e in e.point! }
       ZStack {
-        ForEach(state.hints, id: \.self) { e in
-          if let position = AxElementUtils.getPosition(e.axui) {
-            let selected = state.hints.count == 1
-            let scale = selected ? 1.2 : 1
-            ZStack {
-              Text(e.id)
-                .font(.system(size: 14 * scale))
-                .foregroundColor(.red)
-            }
-            .frame(width: 36 * scale, height: 24 * scale)
-            .background(.black)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
-            .cornerRadius(4)
-            .opacity(selected ? 1 : 0.75)
-            .position(position)
-          } else {
-            EmptyView()
+        ForEach(points.indices, id: \.self) { i in
+
+          let selected = state.hints.count == 1
+          let scale = selected ? 1.2 : 1
+
+          ZStack {
+            Text(state.texts[i])
+              .font(.system(size: 14 * scale))
+              .foregroundColor(.red)
           }
+          .frame(width: 36 * scale, height: 24 * scale)
+          .background(.black)
+          .clipShape(RoundedRectangle(cornerRadius: 4))
+          .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
+          .cornerRadius(4)
+          .opacity(selected ? 1 : 0.75)
+          .position(points[i])
         }
       }.frame(width: geo.size.width, height: geo.size.height)
     }
