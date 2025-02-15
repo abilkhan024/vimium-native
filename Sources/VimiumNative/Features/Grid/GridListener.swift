@@ -1,6 +1,13 @@
 import CoreGraphics
 import SwiftUI
 
+// NOTE:
+// In theory Can do much better by changing filter logic to fully precomputing
+// result for each char because only 26
+// -------------
+// or even having window for each valid combination, might be od though,
+// and could result slower ui
+
 @MainActor
 class GridListener: Listener {
   private var appListener: AppListener?

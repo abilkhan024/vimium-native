@@ -79,14 +79,20 @@ class AxElementUtils {
     return stringValue
   }
 
-  // TODO: Doesn't account rect of parent. Can check when opening extensions of
-  // chrome
+  // TODO: Doesn't account for table rows or something in tableplus and ps aux
   static func isVisible(_ el: AXUIElement) -> Bool? {
-    guard let elRect = getBoundingRect(el), let screen = NSScreen.main else { return nil }
+    guard let elRect = getBoundingRect(el), let screen = NSScreen.main, let parent = getParent(el),
+      let parentRect = getBoundingRect(parent), let role = getAttributeString(el, kAXRoleAttribute)
+    else { return nil }
 
     if elRect.height == screen.frame.height || elRect.width == screen.frame.width {
       return true
     }
+
+    if parentRect.maxY < elRect.minY && role != "AXGroup" && role != "AXMenu" {
+      return false
+    }
+
     return elRect.height > 1 && elRect.width > 1
   }
 }

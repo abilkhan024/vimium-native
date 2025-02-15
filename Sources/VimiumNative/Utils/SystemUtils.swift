@@ -46,5 +46,4 @@ class SystemUtils {
 
     return nil
   }
-
 }

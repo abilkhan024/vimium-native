@@ -38,6 +38,7 @@ class FzFindListener: Listener {
     if role == "AXImage" || role == "AXCell" {
       return true
     }
+
     if role == "AXWindow" || role == "AXScrollArea" {
       return false
     }
