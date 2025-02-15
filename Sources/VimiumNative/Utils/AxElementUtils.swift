@@ -79,14 +79,12 @@ class AxElementUtils {
     return stringValue
   }
 
-  static func isInViewport(_ el: AXUIElement) -> Bool? {
-    guard let elRect = getBoundingRect(el) else { return nil }
-    return elRect.height > 1 && elRect.width > 1
-  }
+  // TODO: Doesn't account rect of parent. Can check when opening extensions of
+  // chrome
+  static func isVisible(_ el: AXUIElement) -> Bool? {
+    guard let elRect = getBoundingRect(el), let screen = NSScreen.main else { return nil }
 
-  static func isInViewport(_ el: AXUIElement, _ w: CGFloat, _ h: CGFloat) -> Bool? {
-    guard let elRect = getBoundingRect(el) else { return nil }
-    if elRect.height == h || elRect.width == w {
+    if elRect.height == screen.frame.height || elRect.width == screen.frame.width {
       return true
     }
     return elRect.height > 1 && elRect.width > 1

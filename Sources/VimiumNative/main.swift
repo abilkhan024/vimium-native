@@ -7,7 +7,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     super.init()
     AppEventManager.add(FzFindListener())
     // AppEventManager.add(FzFindFastListener())
-    // AppEventManager.add(GridListener())
+
+    // Can do much better by changing filter logic to fully precomputing result
+    // for each char because only 26
+    // -------------
+    // or even having window for each valid combination, might be od though,
+    // and could result slower ui
+    AppEventManager.add(GridListener())
   }
 
   func perf() {
@@ -27,8 +33,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       return print("AXIsProcessTrusted is false")
     }
     AppEventManager.listen()
-    // print("Listening to trigger key")
-    // self.perf()
+    print("Listening to trigger key")
   }
 
   func applicationWillTerminate(_ notification: Notification) {

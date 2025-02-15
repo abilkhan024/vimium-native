@@ -8,16 +8,17 @@ enum Keys: Int64 {
   case esc = 53
   case enter = 36
   case backspace = 51
-  case left = 0x7B
-  case right = 0x7C
-  case down = 0x7D
-  case up = 0x7E
-  case h = 0x04
-  case j = 0x26
-  case k = 0x28
-  case l = 0x25
-  case v = 0x09
+  case left = 123
+  case right = 124
+  case down = 125
+  case up = 126
+  case h = 4
+  case j = 38
+  case k = 40
+  case l = 37
+  case v = 9
   case m = 46
+  case quote = 39
 }
 
 @MainActor

@@ -37,7 +37,7 @@ struct GridHintsView: View {
   }
 }
 
-struct GridHintsRowView: View {
+private struct GridHintsRowView: View {
   private let i: Int
   private let cols: Int
   private let sequence: [String]
@@ -79,7 +79,7 @@ struct GridHintsRowView: View {
   }
 }
 
-struct GridHintItemView: View {
+private struct GridHintItemView: View {
   let text: String
   let isMatching: Bool
   let isMatchingCount: Int
@@ -87,17 +87,17 @@ struct GridHintItemView: View {
   let hintHeight: CGFloat
 
   var body: some View {
-    let opacity = isMatching && isMatchingCount == 1 ? 1 : !isMatching ? 0 : 0.6
     GeometryReader { geo in
-      Text(text)
-        .font(.system(size: 16))
-        .foregroundColor(.red)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+      ZStack {}
         .frame(width: hintWidth, height: hintHeight)
-        .background(.black)
-        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
-        .cornerRadius(4)
-        .opacity(opacity)
+        .background(AppOptions.shared.colors.bg)
+        .opacity(0.65)
+        .overlay(Rectangle().stroke(AppOptions.shared.colors.fg, lineWidth: 1.5))
+
+      Text(text.uppercased())
+        .font(.system(size: 14, weight: .bold))
+        .foregroundColor(AppOptions.shared.colors.fg)
+        .frame(width: hintWidth, height: hintHeight)
     }
   }
 }

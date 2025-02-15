@@ -2,7 +2,7 @@ import CoreGraphics
 import SwiftUI
 
 @MainActor
-class FzFindFastWindowManager {
+class TemplateWindowManager {
   enum Window: Int { case hints = 0 }
   private static let windows = [WindowBuilder()]
   private init() {}

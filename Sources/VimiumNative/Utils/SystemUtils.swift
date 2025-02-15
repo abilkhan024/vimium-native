@@ -20,13 +20,15 @@ class SystemUtils {
     }
   }
 
-  static func click(_ point: CGPoint) {
+  static func click(_ point: CGPoint, _ flags: CGEventFlags = []) {
     let eventDown = CGEvent(
       mouseEventSource: nil, mouseType: .leftMouseDown, mouseCursorPosition: point,
       mouseButton: .left)
     let eventUp = CGEvent(
       mouseEventSource: nil, mouseType: .leftMouseUp, mouseCursorPosition: point, mouseButton: .left
     )
+    eventUp?.flags = flags
+    eventDown?.flags = flags
     eventDown?.post(tap: .cghidEventTap)
     eventUp?.post(tap: .cghidEventTap)
   }

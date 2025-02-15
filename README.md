@@ -12,6 +12,10 @@
 
 ---
 
+## v1 checklist
+
+---
+
 ## Current priority
 
 - Need much faster render, and reevaluation on search for both grid and hints

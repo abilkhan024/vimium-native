@@ -1,19 +1,18 @@
+import SwiftUI
 
 // TODO: Read .config later
 @MainActor
-class AppOptions {
-  let hintChars = "asdfghjklweruiozxcvbnmqpyt"
+final class AppOptions {
+  static let shared = AppOptions()
 
-  private static var shared: AppOptions?
+  let colors = (bg: Color.gray, fg: Color.black)
 
-  static func get() -> AppOptions {
-    guard let singletone = shared else {
-      let instance = AppOptions()
-      shared = instance
-      return instance
+  // INFO: Chars that will be used when generating hints
+  let hintChars = "asdfghjklweruio"  // zxcvbnmqpyt
 
-    }
-    return singletone
-  }
+  // INFO: Some may use text as buttons, you can enable it to hint the text
+  // nodes, but it may slowdown rendering, sometimes significantly
+  let hintText = true
 
+  private init() {}
 }

@@ -2,49 +2,93 @@ import ApplicationServices
 import Cocoa
 import SwiftUI
 
+private struct Tooltip<Content: View>: View {
+  let content: Content
+  let position: CGPoint
+  let backgroundColor: Color
+
+  init(position: CGPoint, backgroundColor: Color, @ViewBuilder content: () -> Content) {
+    self.content = content()
+    self.position = position
+    self.backgroundColor = backgroundColor
+  }
+
+  var body: some View {
+    let triangle = (width: 8.0, height: 4.0)
+    let isTop = false
+    GeometryReader { geo in
+      let height = 14.0
+      let y =
+        isTop
+        ? (position.y - geo.frame(in: .global).minY - height)
+        : (position.y - geo.frame(in: .global).minY + height / 2)
+      VStack {
+        if isTop {
+          content
+            .background(backgroundColor)
+            .cornerRadius(4)
+            .offset(x: 0, y: height / 2)
+            .frame(width: nil, height: height)
+        }
+        Triangle()
+          .fill(backgroundColor)
+          .rotationEffect(isTop ? .degrees(180) : .zero)
+          .frame(width: triangle.width, height: triangle.height)
+          .offset(x: 0, y: height / 2)
+        if !isTop {
+          content
+            .background(backgroundColor)
+            .cornerRadius(4)
+            .frame(width: nil, height: height)
+        }
+      }
+      .position(
+        x: position.x - geo.frame(in: .global).minX,
+        y: y
+      )
+    }
+  }
+}
+
+private struct Triangle: Shape {
+  func path(in rect: CGRect) -> Path {
+    var path = Path()
+    path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+    path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+    path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+    path.closeSubpath()
+    return path
+  }
+}
+
 struct FzFindHintsView: View {
   @ObservedObject var state = FzFindState.shared
-  @State private var progress: CGFloat = 0
 
   var body: some View {
     GeometryReader { geo in
-      ZStack {
-        if true {
-          ProgressView(value: progress, total: 100)
-            .progressViewStyle(LinearProgressViewStyle(tint: .blue))  // Customize the color
-            .frame(width: geo.size.width, height: 4, alignment: .bottom)  // Adjust the width
-            .scaleEffect(x: 1, y: 0.5, anchor: .center)  // Make it thinner
-            .padding()
-            .onAppear {
-              withAnimation(.linear(duration: 2)) {  // 2-second animation
-                self.progress = 100
-              }
-            }
-            .onDisappear {
-              progress = 0  // Reset for the next time it appears
-            }
+      if state.loading {
+        ZStack {
+          ProgressView()
+            .progressViewStyle(.circular)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-      }.animation(.default, value: true)
+      }
 
       let points = state.hints.map { e in e.point! }
       ZStack {
         ForEach(points.indices, id: \.self) { i in
-
-          let selected = state.hints.count == 1
-          let scale = selected ? 1.2 : 1
-
-          ZStack {
-            Text(state.texts[i])
-              .font(.system(size: 14 * scale))
-              .foregroundColor(.red)
+          let text = state.texts[i]
+          let isMatch = text.starts(with: state.search)
+          let zIndex = state.zIndexInverted ? Double(points.count) - Double(i) : Double(i)
+          if isMatch {
+            Tooltip(position: points[i], backgroundColor: AppOptions.shared.colors.bg) {
+              Text(text.uppercased())
+                .font(.system(size: 14, weight: .bold))
+                .foregroundColor(AppOptions.shared.colors.fg)
+                .padding([.horizontal], 4)
+            }
+            .zIndex(zIndex)
           }
-          .frame(width: 36 * scale, height: 24 * scale)
-          .background(.black)
-          .clipShape(RoundedRectangle(cornerRadius: 4))
-          .overlay(RoundedRectangle(cornerRadius: 4).stroke(.red, lineWidth: 3))
-          .cornerRadius(4)
-          .opacity(selected ? 1 : 0.75)
-          .position(points[i])
         }
       }.frame(width: geo.size.width, height: geo.size.height)
     }

@@ -17,8 +17,8 @@ class GridListener: Listener {
   init() {
     // TODO: make rows and cols customizable currently set as warpd limits
     let frame = hintsWindow.native().frame
-    hintsState.rows = 40
-    hintsState.cols = 40
+    hintsState.rows = 36
+    hintsState.cols = 36
     hintsState.hintWidth = frame.width / CGFloat(hintsState.cols)
     hintsState.hintHeight = frame.height / CGFloat(hintsState.rows)
     hintsState.sequence = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)

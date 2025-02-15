@@ -6,9 +6,8 @@ class FzFindListener: Listener {
   private let hintsWindow = FzFindWindowManager.get(.hints)
   private var appListener: AppListener?
   private let state = FzFindState.shared
-
+  private var hints: [AxElement] = []
   private var visibleEls: [HintElement] = []
-  private var input = ""
   private let ignoredActions = [
     "AXShowMenu",
     "AXScrollToVisible",
@@ -28,33 +27,28 @@ class FzFindListener: Listener {
       && keyCode == Keys.dot.rawValue
   }
 
-  // Doesn't account rect of parent
-  // Can check when opening extensions of chrome
   func isHintable(_ el: AXUIElement) -> Bool {
     guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else {
       return false
     }
-    if role == "AXRow" {
-      print("Not yet handled")
+    if AppOptions.shared.hintText && role == "AXStaticText" {
+      return true
+    }
+
+    if role == "AXImage" || role == "AXCell" {
+      return true
     }
     if role == "AXWindow" || role == "AXScrollArea" {
       return false
     }
 
-    return isActionable(el) || isRowWithoutHintableChildren(el)
-  }
-
-  func isActionable(_ el: AXUIElement) -> Bool {
     var names: CFArray?
     let error = AXUIElementCopyActionNames(el, &names)
-
-    if error == .noValue || error == .attributeUnsupported {
-      return false
-    }
 
     if error != .success {
       return false
     }
+
     let actions = names! as [AnyObject] as! [String]
     var count = 0
     for ignored in ignoredActions {
@@ -65,53 +59,60 @@ class FzFindListener: Listener {
       }
     }
 
-    return actions.count > count
-  }
+    let hasActions = actions.count > count
 
-  func isRowWithoutHintableChildren(_ el: AXUIElement) -> Bool {
-    return false
-  }
-
-  func getHintableLeafs(_ el: AXUIElement, _ w: CGFloat, _ h: CGFloat) -> [AXUIElement] {
-    let elIsHintable = isHintable(el)
-    var children: CFTypeRef?
-    let visible = AxElementUtils.isInViewport(el, w, h)
-
-    let childResult = AXUIElementCopyAttributeValue(
-      el, kAXChildrenAttribute as CFString, &children)
-    guard childResult == .success, let childrenEls = children as? [AXUIElement], visible != false
-    else {
-      return elIsHintable ? [el] : []
-    }
-    var result: [AXUIElement] = []
-    for child in childrenEls {
-      result.append(contentsOf: getHintableLeafs(child, w, h))
-    }
-    if result.isEmpty && elIsHintable {
-      result.append(el)
-    }
-
-    return result
+    return hasActions
   }
 
   func getVisibleEls() -> [AXUIElement] {
+    // 1. Must get system from top right half using el at point?
+    // 2. Need some validation for tableplus
+    // 3. Doesn't show handles for activity cells in monitor
+
     let app = NSWorkspace.shared.frontmostApplication!
     let pid = app.processIdentifier
 
     let appEl = AXUIElementCreateApplication(pid)
     var els: [AXUIElement] = []
-    let h = self.hintsWindow.native().frame.height
-    let w = self.hintsWindow.native().frame.width
+    var wins: CFTypeRef?
+    let winResult = AXUIElementCopyAttributeValue(appEl, kAXWindowsAttribute as CFString, &wins)
 
-    var stack = [appEl]
+    guard winResult == .success, let windows = wins as? [AXUIElement] else {
+      return []
+    }
+
+    var stack: [AXUIElement] = []
+    for el in windows {
+      stack.append(el)
+      if AxElementUtils.getAttributeString(el, kAXRoleAttribute) == "AXWindow" {
+        break
+      }
+    }
+
+    var menubarRef: AnyObject?
+    let menuResult = AXUIElementCopyAttributeValue(
+      appEl, kAXMenuBarAttribute as CFString, &menubarRef)
+
+    if menuResult == .success, let menu = menubarRef as! AXUIElement? {
+      stack.append(menu)
+    }
+
     while !stack.isEmpty {
       let sub = stack.popLast()!
-      let visible = AxElementUtils.isInViewport(sub, w, h)
+      let visible = AxElementUtils.isVisible(sub)
       let subIsHintable = isHintable(sub)
 
       if visible != false {
-        els.append(contentsOf: getHintableLeafs(sub, w, h))
-      } else if subIsHintable && visible == true {
+        var childrenRef: CFTypeRef?
+
+        let childResult = AXUIElementCopyAttributeValue(
+          sub, kAXChildrenAttribute as CFString, &childrenRef)
+        if childResult == .success, let children = childrenRef as? [AXUIElement] {
+          stack.append(contentsOf: children)
+        }
+      }
+
+      if subIsHintable && visible == true {
         els.append(sub)
       }
     }
@@ -119,29 +120,49 @@ class FzFindListener: Listener {
     return els
   }
 
+  func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {
+    var uniqueEls: [AxElement] = []
+
+    for el in els {
+      guard let point = el.point else { continue }
+      var isDuplicate = false
+      for unique in uniqueEls {
+        let existingPoint = unique.point
+        let dx = point.x - existingPoint!.x
+        let dy = point.y - existingPoint!.y
+        let distanceSquared = dx * dx + dy * dy
+        if distanceSquared <= radius * radius {
+          isDuplicate = true
+          break
+        }
+      }
+      if !isDuplicate {
+        uniqueEls.append(el)
+      }
+    }
+
+    return uniqueEls
+  }
+
   func callback(_ event: CGEvent) {
-    input = ""
-    if let prev = appListener {
-      AppEventManager.remove(prev)
+    if self.appListener != nil {
+      return
     }
-    appListener = AppListener(onEvent: self.onTyping)
-    AppEventManager.add(appListener!)
-    hintsWindow.front().call()
-
-    let start = DispatchTime.now().uptimeNanoseconds
-    let els = getVisibleEls()
-    print("BFS took \(DispatchTime.now().uptimeNanoseconds - start) Got \(els.count)")
-    self.state.hints = els.map { e in AxElement(e) }.filter { e in e.point != nil }
-    self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
+    state.search = ""
     self.hintsWindow.front().call()
-
-    if let prev = self.appListener {
-      AppEventManager.remove(prev)
-    }
+    state.loading = true
     self.appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(self.appListener!)
 
-    print("Took \(DispatchTime.now().uptimeNanoseconds - start) Got \(els.count)")
+    DispatchQueue.main.async {
+      let els = self.getVisibleEls()
+      var hints = els.map { e in AxElement(e) }
+      hints = self.removeDuplicates(from: hints, within: 8)
+      self.hints = hints
+      self.state.hints = self.hints
+      self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
+      self.state.loading = false
+    }
   }
 
   private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
@@ -164,14 +185,9 @@ class FzFindListener: Listener {
         AppEventManager.remove(listener)
         self.appListener = nil
       }
-      self.input = ""
+      self.state.hints = []
+      self.state.search = ""
     }
-  }
-
-  private func selectEl(_ el: HintElement) {
-    guard let point = el.position else { return }
-    SystemUtils.click(point)
-    print("Selecting \(el.id)")
   }
 
   private func onTyping(_ event: CGEvent) {
@@ -179,50 +195,21 @@ class FzFindListener: Listener {
     switch keyCode {
     case Keys.esc.rawValue:
       return onClose()
-    case Keys.dot.rawValue:
-      break
-    // self.visibleEls = self.state.hints.enumerated().map { (idx, el) in
-    //   axuiToHint(self.state.hints.count, idx, el.axui)
-    // }
-    // self.input = ""
-    // return renderHints(self.visibleEls)
-    case Keys.enter.rawValue:
-      break
-    // if let first = self.state.hints.count == 1 ? self.state.hints.first : nil {
-    //   self.selectEl(first)
-    // }
-    // return onClose()
-    case Keys.backspace.rawValue:
-      input = String(input.dropLast())
-      if input.isEmpty {
-        return renderHints(self.visibleEls)
-      }
-      return renderHints(searchEls(els: self.visibleEls, search: input))
+    case Keys.quote.rawValue:
+      self.state.zIndexInverted = !self.state.zIndexInverted
     default:
       guard let char = SystemUtils.getChar(from: event) else { return }
-      input.append(char)
-      return renderHints(searchEls(els: self.visibleEls, search: input))
+      state.search.append(char)
+      if self.state.texts.firstIndex(where: { str in str.starts(with: state.search) }) == nil {
+        return onClose()
+      }
+
+      if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count,
+        let point = self.hints[idx].point
+      {
+        SystemUtils.click(point, event.flags)
+        onClose()
+      }
     }
   }
-
-  private func searchEls(els: [HintElement], search: String) -> [HintElement] {
-    if search.isEmpty {
-      return els
-    }
-    // let lower = search.lowercased()
-
-    return els.filter { (e) in
-      e.id.lowercased().starts(
-        with: search) /* || e.content?.lowercased().contains(lower) ?? false */
-    }
-  }
-
-  private func renderHints(_ els: [HintElement]) {
-    if els.isEmpty {
-      hintsWindow.hide().call()
-    }
-    // state.hints = els
-    NSCursor.hide()
-  }
-
 }

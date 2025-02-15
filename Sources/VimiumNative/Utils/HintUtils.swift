@@ -1,7 +1,7 @@
 @MainActor
 class HintUtils {
   static private var labelSequence: [[String]] = [
-    AppOptions.get()
+    AppOptions.shared
       .hintChars.split(separator: "")
       .map { sub in String(sub) }
   ]
