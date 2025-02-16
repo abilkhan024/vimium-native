@@ -2,6 +2,7 @@
 import CoreGraphics
 import SwiftUI
 
+// REF: https://eastmanreference.com/complete-list-of-applescript-key-codes
 enum Keys: Int64 {
   case dot = 47
   case comma = 43
@@ -19,6 +20,17 @@ enum Keys: Int64 {
   case v = 9
   case m = 46
   case quote = 39
+
+  case one = 18
+  case two = 19
+  case three = 20
+  case four = 21
+  case five = 23
+  case six = 22
+  case seven = 26
+  case eight = 28
+  case nine = 25
+  case zero = 29
 }
 
 @MainActor

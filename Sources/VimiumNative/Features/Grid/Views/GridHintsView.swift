@@ -91,7 +91,7 @@ private struct GridHintItemView: View {
       ZStack {}
         .frame(width: hintWidth, height: hintHeight)
         .background(AppOptions.shared.colors.bg)
-        .opacity(0.65)
+        .opacity(0.55)
         .overlay(Rectangle().stroke(AppOptions.shared.colors.fg, lineWidth: 1.5))
 
       Text(text.uppercased())

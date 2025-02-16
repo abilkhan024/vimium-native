@@ -23,6 +23,7 @@ class WindowBuilder {
       window.setFrame(screenFrame, display: true)
     }
     let hostingView = NSHostingView(rootView: AnyView(EmptyView()))
+    // hostingView.
     hostingView.frame = NSRect(
       x: 0,
       y: 0,

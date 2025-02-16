@@ -11,21 +11,20 @@ import SwiftUI
 @MainActor
 class GridListener: Listener {
   private var appListener: AppListener?
-
   private let hintsState = GridHintsState.shared
   private let mouseState = GridMouseState.shared
-
   private let hintsWindow = GridWindowManager.get(.hints)
   private let mouseWindow = GridWindowManager.get(.mouse)
-
   private let cursourLen: CGFloat = 10
   private var hintSelected = false
+  // NOTE: May be adding projection where the next point will land for each
+  // direction?
+  private var digits = ""
 
   init() {
-    // TODO: make rows and cols customizable currently set as warpd limits
     let frame = hintsWindow.native().frame
-    hintsState.rows = 36
-    hintsState.cols = 36
+    hintsState.rows = AppOptions.shared.grid.rows
+    hintsState.cols = AppOptions.shared.grid.cols
     hintsState.hintWidth = frame.width / CGFloat(hintsState.cols)
     hintsState.hintHeight = frame.height / CGFloat(hintsState.rows)
     hintsState.sequence = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
@@ -47,18 +46,20 @@ class GridListener: Listener {
   }
 
   func callback(_ event: CGEvent) {
+    NSCursor.hide()
+    if appListener != nil {
+      return
+    }
     hintsWindow.front().call()
 
-    if let prev = appListener {
-      AppEventManager.remove(prev)
-    }
     appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(appListener!)
   }
 
   private func onTyping(_ event: CGEvent) {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-    let scale = 5
+    let digits = Int(self.digits) ?? 1
+    let scale = digits * 5
 
     if !hintSelected {
       switch keyCode {
@@ -86,25 +87,33 @@ class GridListener: Listener {
           clearHints()
           hintSelected = true
           mouseWindow.front().call()
-          return move(x: x, y: y)
+          return moveTo(x: x, y: y)
         default:
           break
         }
       }
     }
 
+    let isShifting = event.flags.contains(.maskShift)
     switch keyCode {
+    case Keys.one.rawValue, Keys.two.rawValue, Keys.three.rawValue, Keys.four.rawValue,
+      Keys.five.rawValue, Keys.six.rawValue, Keys.seven.rawValue, Keys.eight.rawValue,
+      Keys.nine.rawValue, Keys.zero.rawValue:
+      guard let char = SystemUtils.getChar(from: event) else { return }
+      self.digits.append(char)
+    case Keys.v.rawValue:
+      return SystemUtils.mouseDown(self.mouseState.position)
     case Keys.esc.rawValue:
       mouseWindow.hide().call()
       return onClose()
-    case Keys.left.rawValue, Keys.h.rawValue:
-      return move(offsetX: -1, offsetY: 0, scale: scale)
-    case Keys.l.rawValue, Keys.right.rawValue:
-      return move(offsetX: 1, offsetY: 0, scale: scale)
-    case Keys.j.rawValue, Keys.down.rawValue:
-      return move(offsetX: 0, offsetY: 1, scale: scale)
-    case Keys.k.rawValue, Keys.up.rawValue:
-      return move(offsetX: 0, offsetY: -1, scale: scale)
+    case Keys.h.rawValue:
+      return moveRelative(isShifting: isShifting, offsetX: -1, offsetY: 0, scale: scale)
+    case Keys.l.rawValue:
+      return moveRelative(isShifting: isShifting, offsetX: 1, offsetY: 0, scale: scale)
+    case Keys.j.rawValue:
+      return moveRelative(isShifting: isShifting, offsetX: 0, offsetY: 1, scale: scale)
+    case Keys.k.rawValue:
+      return moveRelative(isShifting: isShifting, offsetX: 0, offsetY: -1, scale: scale)
     case Keys.m.rawValue:
       return SystemUtils.click()
     default:
@@ -115,27 +124,32 @@ class GridListener: Listener {
   private func onClose() {
     hintSelected = false
     clearHints()
+    if let event = CGEvent(source: nil) {
+      SystemUtils.mouseUp(event.location)
+    }
     if let listener = appListener {
       AppEventManager.remove(listener)
       appListener = nil
     }
   }
 
-  private func move(x: CGFloat, y: CGFloat) {
+  private func moveTo(x: CGFloat, y: CGFloat) {
     mouseState.position = CGPointMake(x, y)
-    // let view = MouseView(position: cursorPos, length: cursourLen)
     SystemUtils.move(mouseState.position)
-    // window.render(AnyView(view)).front().call() consume reactive instead
-    // TODO: works but i guess must spawn new window and bring to the front for
-    // the view instead of resetting
   }
 
-  private func move(offsetX: Int, offsetY: Int, scale: Int) {
-    mouseState.position.x += CGFloat(offsetX * scale)
-    mouseState.position.y += CGFloat(offsetY * scale)
-    // let view = MouseView(position: mouseState.position, length: cursourLen)
-    SystemUtils.move(mouseState.position)
-    // window.render(AnyView(view)).front().call()
+  private func moveRelative(isShifting: Bool, offsetX: Int, offsetY: Int, scale: Int) {
+    if isShifting {
+      let deltaY = Int32(offsetY * -1 * scale)
+      let deltaX = Int32(offsetX * -1 * scale)
+      SystemUtils.scroll(deltaY: deltaY, deltaX: deltaX)
+    } else {
+      mouseState.position.x += CGFloat(offsetX * scale)
+      mouseState.position.y += CGFloat(offsetY * scale)
+      mouseState.position = SystemUtils.normalizePoint(mouseState.position)
+      SystemUtils.move(mouseState.position)
+    }
+    digits = ""
   }
 
   private func clearHints() {
