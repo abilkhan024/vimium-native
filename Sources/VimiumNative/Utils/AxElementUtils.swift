@@ -89,7 +89,9 @@ class AxElementUtils {
       return true
     }
 
-    if parentRect.maxY < elRect.minY && role != "AXGroup" && role != "AXMenu" {
+    if (parentRect.maxX < elRect.minX || parentRect.maxY < elRect.minY) && role != "AXGroup"
+      && role != "AXMenu"
+    {
       return false
     }
 

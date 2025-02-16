@@ -8,6 +8,31 @@ class FzFindListener: Listener {
   private let state = FzFindState.shared
   private var hints: [AxElement] = []
   private var visibleEls: [HintElement] = []
+  private let hintableRoles = [
+    "AXButton",
+    "AXComboBox",
+    "AXCheckBox",
+    "AXRadioButton",
+    "AXLink",
+    "AXImage",
+    "AXCell",
+    "AXMenuBarItem",
+    "AXMenuItem",
+    "AXMenuBar",
+    "AXPopUpButton",
+    "AXTextField",
+    "AXSlider",
+    "AXTabGroup",
+    "AXTabButton",
+    "AXTable",
+    "AXOutline",
+    "AXRow",
+    "AXColumn",
+    "AXScrollBar",
+    "AXSwitch",
+    "AXToolbar",
+    "AXDisclosureTriangle",
+  ]
   private let ignoredActions = [
     "AXShowMenu",
     "AXScrollToVisible",
@@ -33,6 +58,10 @@ class FzFindListener: Listener {
     }
     if AppOptions.shared.hintText && role == "AXStaticText" {
       return true
+    }
+
+    if AppOptions.shared.selection == .role {
+      return hintableRoles.contains(role)
     }
 
     if role == "AXImage" || role == "AXCell" {
@@ -65,7 +94,37 @@ class FzFindListener: Listener {
     return hasActions
   }
 
-  func getVisibleEls() -> [AXUIElement] {
+  private func getHintableNodes(_ el: AXUIElement) -> [AXUIElement] {
+    let visible = AxElementUtils.isVisible(el)
+    if visible == false {
+      return []
+    }
+    var result: [AXUIElement] = []
+    for child in getChildren(el) {
+      if AxElementUtils.isVisible(child) != false {
+        result.append(contentsOf: getHintableNodes(child))
+      }
+    }
+
+    if isHintable(el) {
+      result.append(el)
+    }
+
+    return result
+  }
+
+  private func getChildren(_ el: AXUIElement) -> [AXUIElement] {
+    var childrenRef: CFTypeRef?
+
+    let childResult = AXUIElementCopyAttributeValue(
+      el, kAXChildrenAttribute as CFString, &childrenRef)
+    if childResult == .success, let children = childrenRef as? [AXUIElement] {
+      return children
+    }
+    return []
+  }
+
+  private func getVisibleEls() -> [AXUIElement] {
     // 1. Must get system from top right half using el at point?
     // 2. Need some validation for tableplus
     // 3. Doesn't show handles for activity cells in monitor
@@ -98,24 +157,8 @@ class FzFindListener: Listener {
       stack.append(menu)
     }
 
-    while !stack.isEmpty {
-      let sub = stack.popLast()!
-      let visible = AxElementUtils.isVisible(sub)
-      let subIsHintable = isHintable(sub)
-
-      if visible != false {
-        var childrenRef: CFTypeRef?
-
-        let childResult = AXUIElementCopyAttributeValue(
-          sub, kAXChildrenAttribute as CFString, &childrenRef)
-        if childResult == .success, let children = childrenRef as? [AXUIElement] {
-          stack.append(contentsOf: children)
-        }
-      }
-
-      if subIsHintable && visible == true {
-        els.append(sub)
-      }
+    for sub in stack {
+      els.append(contentsOf: getHintableNodes(sub))
     }
 
     return els
