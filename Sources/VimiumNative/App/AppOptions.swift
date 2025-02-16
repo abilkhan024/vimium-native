@@ -14,7 +14,7 @@ final class AppOptions {
   let colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
 
   // INFO: Chars that will be used when generating hints
-  let hintChars = "asdfghjklweruio"  // zxcvbnmqpyt
+  let hintChars = "jklhasdfgweruio"  // zxcvbnmqpyt
 
   // INFO: Some websites may use text as buttons, you can enable it to hint the
   // text nodes, but it may slowdown rendering, sometimes significantly
@@ -32,7 +32,7 @@ final class AppOptions {
   let grid = (rows: 36, cols: 36)
 
   // INFO: When developing and want to check performance
-  let debugPerf = true
+  let debugPerf = false
 
   private init() {}
 }

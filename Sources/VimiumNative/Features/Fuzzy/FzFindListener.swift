@@ -8,7 +8,7 @@ class FzFindListener: Listener {
   private let state = FzFindState.shared
   private var hints: [AxElement] = []
   private var visibleEls: [HintElement] = []
-  private let hintableRoles = [
+  private let hintableRoles: Set<String> = [
     "AXButton",
     "AXComboBox",
     "AXCheckBox",
