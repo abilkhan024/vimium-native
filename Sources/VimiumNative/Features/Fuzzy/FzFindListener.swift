@@ -44,26 +44,71 @@ class FzFindListener: Listener {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
   }
 
-
+  // 1. Must get system from top right half using el at point?
+  // 2. Need some validation for tableplus
+  // 3. Doesn't show handles for activity cells in monitor
   private func getVisibleEls() -> [AXUIElement] {
     let wg = DispatchGroup()
     let queue = DispatchQueue(label: "thread-safe-obj", attributes: .concurrent)
-
+    let hintText = AppOptions.shared.hintText
+    let roleBased = AppOptions.shared.selection == .role
 
     guard let app = NSWorkspace.shared.frontmostApplication else {
       return []
     }
-    var result: [AXUIElement] = []
+    nonisolated(unsafe) var result: [AXUIElement] = []
+
+    @Sendable
+    func isHintable(_ el: AXUIElement) -> Bool {
+      guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else {
+        return false
+      }
+      if hintText && role == "AXStaticText" {
+        return true
+      }
+
+      if roleBased {
+        return hintableRoles.contains(role)
+      }
+
+      if role == "AXImage" || role == "AXCell" {
+        return true
+      }
+
+      if role == "AXWindow" || role == "AXScrollArea" {
+        return false
+      }
+
+      var names: CFArray?
+      let error = AXUIElementCopyActionNames(el, &names)
+
+      if error != .success {
+        return false
+      }
+
+      let actions = names! as [AnyObject] as! [String]
+      var count = 0
+      for ignored in ignoredActions {
+        for action in actions {
+          if action == ignored {
+            count += 1
+          }
+        }
+      }
+
+      let hasActions = actions.count > count
+
+      return hasActions
+    }
 
     @Sendable
     func dfs(_ el: AXUIElement) {
-      guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else { return }
       let visible = AxElementUtils.isVisible(el)
       if visible == false {
         return
       }
 
-      if self.hintableRoles.contains(role) {
+      if isHintable(el) {
         wg.enter()
         queue.async(flags: .barrier) {
           wg.leave()
@@ -118,67 +163,6 @@ class FzFindListener: Listener {
       && keyCode == Keys.dot.rawValue
   }
 
-  func isHintable(_ el: AXUIElement) -> Bool {
-    guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else {
-      return false
-    }
-    if AppOptions.shared.hintText && role == "AXStaticText" {
-      return true
-    }
-
-    if AppOptions.shared.selection == .role {
-      return hintableRoles.contains(role)
-    }
-
-    if role == "AXImage" || role == "AXCell" {
-      return true
-    }
-
-    if role == "AXWindow" || role == "AXScrollArea" {
-      return false
-    }
-
-    var names: CFArray?
-    let error = AXUIElementCopyActionNames(el, &names)
-
-    if error != .success {
-      return false
-    }
-
-    let actions = names! as [AnyObject] as! [String]
-    var count = 0
-    for ignored in ignoredActions {
-      for action in actions {
-        if action == ignored {
-          count += 1
-        }
-      }
-    }
-
-    let hasActions = actions.count > count
-
-    return hasActions
-  }
-
-  private func getHintableNodes(_ el: AXUIElement) -> [AXUIElement] {
-    let visible = AxElementUtils.isVisible(el)
-    if visible == false {
-      return []
-    }
-    var result: [AXUIElement] = []
-    for child in getChildren(el) {
-      if AxElementUtils.isVisible(child) != false {
-        result.append(contentsOf: getHintableNodes(child))
-      }
-    }
-
-    if isHintable(el) {
-      result.append(el)
-    }
-
-    return result
-  }
-
   private func getChildren(_ el: AXUIElement) -> [AXUIElement] {
     var childrenRef: CFTypeRef?
 
@@ -188,46 +172,6 @@ class FzFindListener: Listener {
       return children
     }
     return []
-  }
-
-  private func getVisibleElsSlow() -> [AXUIElement] {
-    // 1. Must get system from top right half using el at point?
-    // 2. Need some validation for tableplus
-    // 3. Doesn't show handles for activity cells in monitor
-
-    let app = NSWorkspace.shared.frontmostApplication!
-    let pid = app.processIdentifier
-
-    let appEl = AXUIElementCreateApplication(pid)
-    var els: [AXUIElement] = []
-    var wins: CFTypeRef?
-    let winResult = AXUIElementCopyAttributeValue(appEl, kAXWindowsAttribute as CFString, &wins)
-
-    guard winResult == .success, let windows = wins as? [AXUIElement] else {
-      return []
-    }
-
-    var stack: [AXUIElement] = []
-    for el in windows {
-      stack.append(el)
-      if AxElementUtils.getAttributeString(el, kAXRoleAttribute) == "AXWindow" {
-        break
-      }
-    }
-
-    // var menubarRef: AnyObject?
-    // let menuResult = AXUIElementCopyAttributeValue(
-    //   appEl, kAXMenuBarAttribute as CFString, &menubarRef)
-    //
-    // if menuResult == .success, let menu = menubarRef as! AXUIElement? {
-    //   stack.append(menu)
-    // }
-
-    for sub in stack {
-      els.append(contentsOf: getHintableNodes(sub))
-    }
-
-    return els
   }
 
   func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {

@@ -1,4 +1,4 @@
-## v0.1 checklist
+# v0.1 checklist
 
 1. Warpd mouse functionality (may be even better by more grids)
 2. Scrolling at any point to 4 dirs, and using vi style number prefix for each
@@ -18,16 +18,23 @@
   - Grid meaning hints are in grid view
   - FzFind meaning FuzzyFind
 
-# Development
-
-## Build and run
+# Build
 
 ```sh
-swift build && .build/debug/VimiumNative
+# Build in release mode
+swift build -c release
+
+# Run
+.build/release/VimiumNative
 ```
 
-## Watch for fs changes via watchexec
+# Development
 
 ```sh
+# Build in debug mode
+swift build
+
+# Build in debug and watch for file changes requires
+# [watchexec](https://github.com/watchexec/watchexec)
 watchexec -r 'swift build && .build/debug/VimiumNative'
 ```
