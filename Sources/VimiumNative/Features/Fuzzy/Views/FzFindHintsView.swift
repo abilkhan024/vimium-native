@@ -88,6 +88,7 @@ struct FzFindHintsView: View {
                 .padding([.horizontal], 4)
             }
             .zIndex(zIndex)
+            .shadow(radius: 6.0)
           }
         }
       }.frame(width: geo.size.width, height: geo.size.height)

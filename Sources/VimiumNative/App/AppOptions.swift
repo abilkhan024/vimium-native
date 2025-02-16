@@ -1,6 +1,7 @@
 import SwiftUI
 
 // TODO: Read .config later
+// TODO: Add option to index only hintable leafes
 @MainActor
 final class AppOptions {
   static let shared = AppOptions()
