@@ -19,5 +19,8 @@ final class AppOptions {
   // trade-off between precision and performance
   let grid = (rows: 36, cols: 36)
 
+  // INFO: When developing and want to check performance
+  let debugPerf = true
+
   private init() {}
 }

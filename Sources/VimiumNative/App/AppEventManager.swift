@@ -19,6 +19,8 @@ enum Keys: Int64 {
   case l = 37
   case v = 9
   case m = 46
+  case d = 2
+  case u = 32
   case quote = 39
 
   case one = 18

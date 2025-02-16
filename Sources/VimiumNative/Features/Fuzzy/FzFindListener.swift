@@ -156,9 +156,13 @@ class FzFindListener: Listener {
     AppEventManager.add(self.appListener!)
 
     DispatchQueue.main.async {
+      let start = DispatchTime.now().uptimeNanoseconds
       let els = self.getVisibleEls()
       var hints = els.map { e in AxElement(e) }
       hints = self.removeDuplicates(from: hints, within: 8)
+      if AppOptions.shared.debugPerf {
+        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start)")
+      }
       self.hints = hints
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)

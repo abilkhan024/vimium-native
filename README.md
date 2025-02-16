@@ -1,4 +1,4 @@
-# Plans
+## v0.1 checklist
 
 1. Warpd mouse functionality (may be even better by more grids)
 2. Scrolling at any point to 4 dirs, and using vi style number prefix for each
@@ -11,33 +11,6 @@
 7. Reliable calling doesn't crash or stops
 
 ---
-
-## v1 checklist
-
----
-
-## Current priority
-
-- Need much faster render, and reevaluation on search for both grid and hints
-  - [x] Using reactivity for instead of remount of contentView
-  - [ ] May be prerender initial view and keep at 0 opacity and increase
-        opacity later?
-    - [ ] Keep render instance and bring them to the front, create some sort
-          window manager for each window, grid, labeled-hints
-  - [ ] Introduce less intensive operations
-    - [ ] For mouse
-      - [ ] Custom amount of hitboxes larger the faster
-    - [ ] For hints
-      - [ ] Remove redundant for hints (e.g. if parent has valid children no need
-            for parent? (arguable))
-      - [ ] Select by mode (interactive, interactive text, lazy loaded text)?
-- Secondary selection allow to scroll through current selection using arrows
-  - Sorting
-
-## Later down the road
-
-- Rewrite state management, by at least split by module in which it's used by
-- Change to rcmd + / later with some key like s
 
 # Navigation
 

@@ -89,7 +89,7 @@ class GridListener: Listener {
           mouseWindow.front().call()
           return moveTo(x: x, y: y)
         default:
-          break
+          return
         }
       }
     }
@@ -107,13 +107,17 @@ class GridListener: Listener {
       mouseWindow.hide().call()
       return onClose()
     case Keys.h.rawValue:
-      return moveRelative(isShifting: isShifting, offsetX: -1, offsetY: 0, scale: scale)
+      return moveRelative(scroll: isShifting, offsetX: -1, offsetY: 0, scale: scale)
     case Keys.l.rawValue:
-      return moveRelative(isShifting: isShifting, offsetX: 1, offsetY: 0, scale: scale)
+      return moveRelative(scroll: isShifting, offsetX: 1, offsetY: 0, scale: scale)
     case Keys.j.rawValue:
-      return moveRelative(isShifting: isShifting, offsetX: 0, offsetY: 1, scale: scale)
+      return moveRelative(scroll: isShifting, offsetX: 0, offsetY: 1, scale: scale)
     case Keys.k.rawValue:
-      return moveRelative(isShifting: isShifting, offsetX: 0, offsetY: -1, scale: scale)
+      return moveRelative(scroll: isShifting, offsetX: 0, offsetY: -1, scale: scale)
+    case Keys.d.rawValue:
+      return moveRelative(scroll: true, offsetX: 0, offsetY: 1, scale: scale * 16)
+    case Keys.u.rawValue:
+      return moveRelative(scroll: true, offsetX: 0, offsetY: -1, scale: scale * 16)
     case Keys.m.rawValue:
       return SystemUtils.click()
     default:
@@ -138,8 +142,8 @@ class GridListener: Listener {
     SystemUtils.move(mouseState.position)
   }
 
-  private func moveRelative(isShifting: Bool, offsetX: Int, offsetY: Int, scale: Int) {
-    if isShifting {
+  private func moveRelative(scroll: Bool, offsetX: Int, offsetY: Int, scale: Int) {
+    if scroll {
       let deltaY = Int32(offsetY * -1 * scale)
       let deltaX = Int32(offsetX * -1 * scale)
       SystemUtils.scroll(deltaY: deltaY, deltaX: deltaX)
