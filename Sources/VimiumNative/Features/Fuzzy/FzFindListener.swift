@@ -1,5 +1,5 @@
 import CoreGraphics
-import SwiftUI
+@preconcurrency import SwiftUI
 
 @MainActor
 class FzFindListener: Listener {
@@ -42,6 +42,72 @@ class FzFindListener: Listener {
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
+  }
+
+
+  private func getVisibleEls() -> [AXUIElement] {
+    let wg = DispatchGroup()
+    let queue = DispatchQueue(label: "thread-safe-obj", attributes: .concurrent)
+
+
+    guard let app = NSWorkspace.shared.frontmostApplication else {
+      return []
+    }
+    var result: [AXUIElement] = []
+
+    @Sendable
+    func dfs(_ el: AXUIElement) {
+      guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else { return }
+      let visible = AxElementUtils.isVisible(el)
+      if visible == false {
+        return
+      }
+
+      if self.hintableRoles.contains(role) {
+        wg.enter()
+        queue.async(flags: .barrier) {
+          wg.leave()
+          result.append(el)
+        }
+      }
+
+      var childrenRef: CFTypeRef?
+
+      let childResult = AXUIElementCopyAttributeValue(
+        el, kAXChildrenAttribute as CFString, &childrenRef)
+      if childResult == .success, let children = childrenRef as? [AXUIElement] {
+        for _ in children {
+          wg.enter()
+        }
+        DispatchQueue.global(qos: .userInteractive).async {
+          DispatchQueue.concurrentPerform(iterations: children.count) { i in
+            dfs(children[i])
+            wg.leave()
+          }
+        }
+      }
+    }
+
+    let pid = app.processIdentifier
+    let appEl = AXUIElementCreateApplication(pid)
+    var wins: CFTypeRef?
+    let winResult = AXUIElementCopyAttributeValue(appEl, kAXWindowsAttribute as CFString, &wins)
+    guard winResult == .success, let windows = wins as? [AXUIElement] else {
+      return []
+    }
+    for _ in windows {
+      wg.enter()
+    }
+    DispatchQueue.global(qos: .userInteractive).async {
+      DispatchQueue.concurrentPerform(iterations: windows.count) { i in
+        dfs(windows[i])
+        wg.leave()
+      }
+    }
+
+    wg.wait()
+
+    return result
   }
 
   func match(_ event: CGEvent) -> Bool {
@@ -124,7 +190,7 @@ class FzFindListener: Listener {
     return []
   }
 
-  private func getVisibleEls() -> [AXUIElement] {
+  private func getVisibleElsSlow() -> [AXUIElement] {
     // 1. Must get system from top right half using el at point?
     // 2. Need some validation for tableplus
     // 3. Doesn't show handles for activity cells in monitor
@@ -149,13 +215,13 @@ class FzFindListener: Listener {
       }
     }
 
-    var menubarRef: AnyObject?
-    let menuResult = AXUIElementCopyAttributeValue(
-      appEl, kAXMenuBarAttribute as CFString, &menubarRef)
-
-    if menuResult == .success, let menu = menubarRef as! AXUIElement? {
-      stack.append(menu)
-    }
+    // var menubarRef: AnyObject?
+    // let menuResult = AXUIElementCopyAttributeValue(
+    //   appEl, kAXMenuBarAttribute as CFString, &menubarRef)
+    //
+    // if menuResult == .success, let menu = menubarRef as! AXUIElement? {
+    //   stack.append(menu)
+    // }
 
     for sub in stack {
       els.append(contentsOf: getHintableNodes(sub))
@@ -201,15 +267,18 @@ class FzFindListener: Listener {
     DispatchQueue.main.async {
       let start = DispatchTime.now().uptimeNanoseconds
       let els = self.getVisibleEls()
+      if AppOptions.shared.debugPerf {
+        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(els.count)")
+      }
       var hints = els.map { e in AxElement(e) }
       hints = self.removeDuplicates(from: hints, within: 8)
-      if AppOptions.shared.debugPerf {
-        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start)")
-      }
       self.hints = hints
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
       self.state.loading = false
+      if AppOptions.shared.debugPerf {
+        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(els.count)")
+      }
     }
   }
 
