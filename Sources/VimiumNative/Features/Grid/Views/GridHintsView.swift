@@ -98,6 +98,6 @@ private struct GridHintItemView: View {
         .font(.system(size: 14, weight: .bold))
         .foregroundColor(AppOptions.shared.colors.fg)
         .frame(width: hintWidth, height: hintHeight)
-    }
+    }.opacity(isMatching ? 1 : 0.001)
   }
 }

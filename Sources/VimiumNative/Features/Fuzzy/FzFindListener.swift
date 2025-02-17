@@ -44,7 +44,11 @@ class FzFindListener: Listener {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
   }
 
-  // 1. Must get system from top right half using el at point?
+  // NOTE: May be doing, AXUIElementCopyElementAtPosition concurently, and
+  // getting all the children of those or something?
+  // ------
+  // Limitations:
+  // 1. Must get system from top right half using func above
   // 2. Need some validation for tableplus
   // 3. Doesn't show handles for activity cells in monitor
   private func getVisibleEls() -> [AXUIElement] {
@@ -135,21 +139,12 @@ class FzFindListener: Listener {
 
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
-    var wins: CFTypeRef?
-    let winResult = AXUIElementCopyAttributeValue(appEl, kAXWindowsAttribute as CFString, &wins)
-    guard winResult == .success, let windows = wins as? [AXUIElement] else {
-      return []
-    }
-    for _ in windows {
-      wg.enter()
-    }
-    DispatchQueue.global(qos: .userInteractive).async {
-      DispatchQueue.concurrentPerform(iterations: windows.count) { i in
-        dfs(windows[i])
-        wg.leave()
-      }
-    }
 
+    var winRef: CFTypeRef?
+    let sub = AXUIElementCopyAttributeValue(appEl, kAXMainWindowAttribute as CFString, &winRef)
+
+    guard sub == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
+    dfs(mainWindow)
     wg.wait()
 
     return result

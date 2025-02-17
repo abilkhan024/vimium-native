@@ -18,6 +18,7 @@ final class AppOptions {
 
   // INFO: Some websites may use text as buttons, you can enable it to hint the
   // text nodes, but it may slowdown rendering, sometimes significantly
+  // P.s HomeRow doesn't do it, that's why it's false by default
   let hintText = false
 
   // INFO: How to determine if the element is hintable, .action is generally
