@@ -130,6 +130,9 @@ class GridListener: Listener {
       return moveRelative(scroll: true, offsetX: 0, offsetY: 1, scale: scale * 16)
     case Keys.u.rawValue:
       return moveRelative(scroll: true, offsetX: 0, offsetY: -1, scale: scale * 16)
+    case Keys.g.rawValue:
+      return moveRelative(
+        scroll: true, offsetX: 0, offsetY: isShifting ? 1 : -1, scale: scale * 9999)
     case Keys.m.rawValue:
       return SystemUtils.click()
     default:

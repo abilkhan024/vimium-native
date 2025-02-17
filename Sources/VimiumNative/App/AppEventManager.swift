@@ -21,6 +21,7 @@ enum Keys: Int64 {
   case m = 46
   case d = 2
   case u = 32
+  case g = 5
   case quote = 39
 
   case one = 18
