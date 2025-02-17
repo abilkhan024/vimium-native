@@ -30,7 +30,6 @@ class GridListener: Listener {
     hintsState.sequence = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
     hintsState.matchingCount = hintsState.sequence.count
     hintsState.search = ""
-    hintSelected = false
 
     hintsWindow.render(AnyView(GridHintsView())).call()
 
@@ -42,16 +41,30 @@ class GridListener: Listener {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
 
     return flags.contains(.maskCommand) && flags.contains(.maskShift)
-      && keyCode == Keys.comma.rawValue
+      && (keyCode == Keys.comma.rawValue || keyCode == Keys.j.rawValue)
   }
 
   func callback(_ event: CGEvent) {
-    NSCursor.hide()
-    if appListener != nil {
-      return
+    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+    switch keyCode {
+    case Keys.j.rawValue:
+      guard let screen = NSScreen.main else { return }
+      clearHints()
+      hintSelected = true
+      mouseWindow.front().call()
+      moveTo(x: screen.frame.maxX / 2, y: screen.frame.maxY / 2)
+    case Keys.comma.rawValue:
+      if !hintSelected && appListener != nil {
+        return
+      }
+      hintSelected = false
+      hintsWindow.front().call()
+    default: print("Impossible case")
     }
-    hintsWindow.front().call()
 
+    if let listener = appListener {
+      AppEventManager.remove(listener)
+    }
     appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(appListener!)
   }
@@ -104,7 +117,6 @@ class GridListener: Listener {
     case Keys.v.rawValue:
       return SystemUtils.mouseDown(self.mouseState.position)
     case Keys.esc.rawValue:
-      mouseWindow.hide().call()
       return onClose()
     case Keys.h.rawValue:
       return moveRelative(scroll: isShifting, offsetX: -1, offsetY: 0, scale: scale)
@@ -128,6 +140,7 @@ class GridListener: Listener {
   private func onClose() {
     hintSelected = false
     clearHints()
+    mouseWindow.hide().call()
     if let event = CGEvent(source: nil) {
       SystemUtils.mouseUp(event.location)
     }
