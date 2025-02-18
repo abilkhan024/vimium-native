@@ -1,8 +1,13 @@
 # v0.1 checklist
 
 1. Customization via .config file
+   1.1. Keys for shortcuts
 2. Better scroll experience
-3. Fuzzy find based on text attr
+   - Smoother, and option for scroll size
+3. System level menu bar hinting
+   - May be poll each n seconds
+4. Fuzzy find based on text attr
+   - Must tab/s-tab between hints?
 
 ---
 
