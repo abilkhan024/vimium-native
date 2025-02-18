@@ -12,7 +12,7 @@ struct GridMouseView: View {
 
   var body: some View {
     Ellipse()
-      .fill(Color.red)
+      .fill(state.dragging ? Color.blue : Color.red)
       .frame(width: self.length, height: self.length)
       .position(self.state.position)
   }

@@ -3,11 +3,11 @@ import CoreGraphics
 import SwiftUI
 
 class EventUtils {
-  static func move(_ target: CGPoint) {
+  static func move(_ target: CGPoint, type: CGEventType = .mouseMoved) {
     let point = normalizePoint(target)
     let event = CGEvent(
       mouseEventSource: nil,
-      mouseType: .mouseMoved,
+      mouseType: type,
       mouseCursorPosition: point,
       mouseButton: .left
     )

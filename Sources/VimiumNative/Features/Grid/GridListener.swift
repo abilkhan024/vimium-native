@@ -29,10 +29,8 @@ class GridListener: Listener {
     hintsState.hintHeight = frame.height / CGFloat(hintsState.rows)
     hintsState.sequence = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
     hintsState.matchingCount = hintsState.sequence.count
-    hintsState.search = ""
 
     hintsWindow.render(AnyView(GridHintsView())).call()
-
     mouseWindow.render(AnyView(GridMouseView(length: 10))).call()
   }
 
@@ -115,15 +113,18 @@ class GridListener: Listener {
       guard let char = EventUtils.getEventChar(from: event) else { return }
       self.digits.append(char)
     case Keys.v.rawValue:
+      mouseState.dragging = !mouseState.dragging
       return EventUtils.leftMouseDown(self.mouseState.position)
     case Keys.dot.rawValue:
       return EventUtils.rightClick(self.mouseState.position)
     case Keys.esc.rawValue:
       return onClose()
     case Keys.h.rawValue:
-      return moveRelative(scroll: isShifting, offsetX: -1, offsetY: 0, scale: scale)
+      return moveRelative(
+        scroll: isShifting, offsetX: -1, offsetY: 0, scale: isShifting ? scale * 10 : scale)
     case Keys.l.rawValue:
-      return moveRelative(scroll: isShifting, offsetX: 1, offsetY: 0, scale: scale)
+      return moveRelative(
+        scroll: isShifting, offsetX: 1, offsetY: 0, scale: isShifting ? scale * 10 : scale)
     case Keys.j.rawValue:
       return moveRelative(scroll: isShifting, offsetX: 0, offsetY: 1, scale: scale)
     case Keys.k.rawValue:
@@ -144,6 +145,7 @@ class GridListener: Listener {
 
   private func onClose() {
     hintSelected = false
+    mouseState.dragging = false
     clearHints()
     mouseWindow.hide().call()
     if let event = CGEvent(source: nil) {
@@ -169,7 +171,11 @@ class GridListener: Listener {
       mouseState.position.x += CGFloat(offsetX * scale)
       mouseState.position.y += CGFloat(offsetY * scale)
       mouseState.position = EventUtils.normalizePoint(mouseState.position)
-      EventUtils.move(mouseState.position)
+      if mouseState.dragging {
+        EventUtils.move(mouseState.position, type: .leftMouseDragged)
+      } else {
+        EventUtils.move(mouseState.position)
+      }
     }
     digits = ""
   }

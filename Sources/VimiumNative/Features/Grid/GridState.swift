@@ -18,6 +18,7 @@ final class GridHintsState: ObservableObject {
 @MainActor
 class GridMouseState: ObservableObject {
   @Published var position = CGPointMake(0, 0)
+  @Published var dragging = false
 
   static let shared = GridMouseState()
 
