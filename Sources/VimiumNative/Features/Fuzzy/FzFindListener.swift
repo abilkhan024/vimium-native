@@ -263,7 +263,7 @@ class FzFindListener: Listener {
       if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count,
         let point = self.hints[idx].point
       {
-        SystemUtils.click(point, event.flags)
+        SystemUtils.leftClick(point, event.flags)
         onClose()
       }
     }

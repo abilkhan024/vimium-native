@@ -92,10 +92,10 @@ private struct GridHintItemView: View {
         .frame(width: hintWidth, height: hintHeight)
         .background(AppOptions.shared.colors.bg)
         .opacity(0.55)
-        .overlay(Rectangle().stroke(AppOptions.shared.colors.fg, lineWidth: 1.5))
+        .overlay(Rectangle().stroke(AppOptions.shared.colors.fg, lineWidth: 1))
 
       Text(text.uppercased())
-        .font(.system(size: 14, weight: .bold))
+        .font(.system(size: AppOptions.shared.grid.fontSize, weight: .bold))
         .foregroundColor(AppOptions.shared.colors.fg)
         .frame(width: hintWidth, height: hintHeight)
     }.opacity(isMatching ? 1 : 0.001)

@@ -80,16 +80,15 @@ struct FzFindHintsView: View {
           let text = state.texts[i]
           let isMatch = text.starts(with: state.search)
           let zIndex = state.zIndexInverted ? Double(points.count) - Double(i) : Double(i)
-          if isMatch {
-            Tooltip(position: points[i], backgroundColor: AppOptions.shared.colors.bg) {
-              Text(text.uppercased())
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(AppOptions.shared.colors.fg)
-                .padding([.horizontal], 4)
-            }
-            .zIndex(zIndex)
-            .shadow(radius: 6.0)
+          Tooltip(position: points[i], backgroundColor: AppOptions.shared.colors.bg) {
+            Text(text.uppercased())
+              .font(.system(size: 14, weight: .bold))
+              .foregroundColor(AppOptions.shared.colors.fg)
+              .padding([.horizontal], 4)
           }
+          .zIndex(zIndex)
+          .shadow(radius: 6.0)
+          .opacity(isMatch ? 1 : 0.001)
         }
       }.frame(width: geo.size.width, height: geo.size.height)
     }

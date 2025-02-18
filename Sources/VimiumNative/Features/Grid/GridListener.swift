@@ -115,7 +115,9 @@ class GridListener: Listener {
       guard let char = SystemUtils.getChar(from: event) else { return }
       self.digits.append(char)
     case Keys.v.rawValue:
-      return SystemUtils.mouseDown(self.mouseState.position)
+      return SystemUtils.leftMouseDown(self.mouseState.position)
+    case Keys.dot.rawValue:
+      return SystemUtils.rightClick(self.mouseState.position)
     case Keys.esc.rawValue:
       return onClose()
     case Keys.h.rawValue:
@@ -145,7 +147,7 @@ class GridListener: Listener {
     clearHints()
     mouseWindow.hide().call()
     if let event = CGEvent(source: nil) {
-      SystemUtils.mouseUp(event.location)
+      SystemUtils.leftMouseUp(event.location)
     }
     if let listener = appListener {
       AppEventManager.remove(listener)
