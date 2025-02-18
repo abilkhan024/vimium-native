@@ -2,7 +2,7 @@ import AppKit
 import CoreGraphics
 import SwiftUI
 
-class SystemUtils {
+class EventUtils {
   static func move(_ target: CGPoint) {
     let point = normalizePoint(target)
     let event = CGEvent(
@@ -66,7 +66,7 @@ class SystemUtils {
     postMouse(.rightMouseUp, .right, point, flags)
   }
 
-  static func getChar(from event: CGEvent) -> String? {
+  static func getEventChar(from event: CGEvent) -> String? {
     var unicodeString = [UniChar](repeating: 0, count: 4)
     var length: Int = 0
 

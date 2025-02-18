@@ -79,7 +79,7 @@ class GridListener: Listener {
       case Keys.esc.rawValue:
         return onClose()
       default:
-        guard let char = SystemUtils.getChar(from: event) else { return }
+        guard let char = EventUtils.getEventChar(from: event) else { return }
         hintsState.search.append(char)
         hintsState.matchingCount =
           hintsState.sequence.filter { el in el.starts(with: hintsState.search) }.count
@@ -112,12 +112,12 @@ class GridListener: Listener {
     case Keys.one.rawValue, Keys.two.rawValue, Keys.three.rawValue, Keys.four.rawValue,
       Keys.five.rawValue, Keys.six.rawValue, Keys.seven.rawValue, Keys.eight.rawValue,
       Keys.nine.rawValue, Keys.zero.rawValue:
-      guard let char = SystemUtils.getChar(from: event) else { return }
+      guard let char = EventUtils.getEventChar(from: event) else { return }
       self.digits.append(char)
     case Keys.v.rawValue:
-      return SystemUtils.leftMouseDown(self.mouseState.position)
+      return EventUtils.leftMouseDown(self.mouseState.position)
     case Keys.dot.rawValue:
-      return SystemUtils.rightClick(self.mouseState.position)
+      return EventUtils.rightClick(self.mouseState.position)
     case Keys.esc.rawValue:
       return onClose()
     case Keys.h.rawValue:
@@ -136,7 +136,7 @@ class GridListener: Listener {
       return moveRelative(
         scroll: true, offsetX: 0, offsetY: isShifting ? 1 : -1, scale: scale * 9999)
     case Keys.m.rawValue:
-      return SystemUtils.click()
+      return EventUtils.click()
     default:
       return
     }
@@ -147,7 +147,7 @@ class GridListener: Listener {
     clearHints()
     mouseWindow.hide().call()
     if let event = CGEvent(source: nil) {
-      SystemUtils.leftMouseUp(event.location)
+      EventUtils.leftMouseUp(event.location)
     }
     if let listener = appListener {
       AppEventManager.remove(listener)
@@ -157,19 +157,19 @@ class GridListener: Listener {
 
   private func moveTo(x: CGFloat, y: CGFloat) {
     mouseState.position = CGPointMake(x, y)
-    SystemUtils.move(mouseState.position)
+    EventUtils.move(mouseState.position)
   }
 
   private func moveRelative(scroll: Bool, offsetX: Int, offsetY: Int, scale: Int) {
     if scroll {
       let deltaY = Int32(offsetY * -1 * scale)
       let deltaX = Int32(offsetX * -1 * scale)
-      SystemUtils.scroll(deltaY: deltaY, deltaX: deltaX)
+      EventUtils.scroll(deltaY: deltaY, deltaX: deltaX)
     } else {
       mouseState.position.x += CGFloat(offsetX * scale)
       mouseState.position.y += CGFloat(offsetY * scale)
-      mouseState.position = SystemUtils.normalizePoint(mouseState.position)
-      SystemUtils.move(mouseState.position)
+      mouseState.position = EventUtils.normalizePoint(mouseState.position)
+      EventUtils.move(mouseState.position)
     }
     digits = ""
   }

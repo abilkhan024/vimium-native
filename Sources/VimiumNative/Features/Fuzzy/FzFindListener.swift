@@ -7,7 +7,6 @@ class FzFindListener: Listener {
   private var appListener: AppListener?
   private let state = FzFindState.shared
   private var hints: [AxElement] = []
-  private var visibleEls: [HintElement] = []
   private let hintableRoles: Set<String> = [
     "AXButton",
     "AXComboBox",
@@ -221,19 +220,6 @@ class FzFindListener: Listener {
     }
   }
 
-  private func axuiToHint(_ count: Int, _ idx: Int, _ el: AXUIElement) -> HintElement {
-    let seq = HintUtils.getLabels(from: count)
-    let id = seq[idx]
-    var hint = HintElement(id: id, axui: el, content: AxElementUtils.toString(el))
-    if let point = AxElementUtils.getPoint(el),
-      let size = AxElementUtils.getSize(el)
-    {
-      hint.position = CGPointMake(point.x + size.width / 2, point.y + size.height / 2)
-    }
-
-    return hint
-  }
-
   private func onClose() {
     hintsWindow.hide().call()
     DispatchQueue.main.async {
@@ -254,7 +240,7 @@ class FzFindListener: Listener {
     case Keys.quote.rawValue:
       self.state.zIndexInverted = !self.state.zIndexInverted
     default:
-      guard let char = SystemUtils.getChar(from: event) else { return }
+      guard let char = EventUtils.getEventChar(from: event) else { return }
       state.search.append(char)
       if self.state.texts.firstIndex(where: { str in str.starts(with: state.search) }) == nil {
         return onClose()
@@ -263,7 +249,7 @@ class FzFindListener: Listener {
       if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count,
         let point = self.hints[idx].point
       {
-        SystemUtils.leftClick(point, event.flags)
+        EventUtils.leftClick(point, event.flags)
         onClose()
       }
     }
