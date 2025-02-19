@@ -7,37 +7,6 @@ class FzFindListener: Listener {
   private var appListener: AppListener?
   private let state = FzFindState.shared
   private var hints: [AxElement] = []
-  private let hintableRoles: Set<String> = [
-    "AXButton",
-    "AXComboBox",
-    "AXCheckBox",
-    "AXRadioButton",
-    "AXLink",
-    "AXImage",
-    "AXCell",
-    "AXMenuBarItem",
-    "AXMenuItem",
-    "AXMenuBar",
-    "AXPopUpButton",
-    "AXTextField",
-    "AXSlider",
-    "AXTabGroup",
-    "AXTabButton",
-    "AXTable",
-    "AXOutline",
-    "AXRow",
-    "AXColumn",
-    "AXScrollBar",
-    "AXSwitch",
-    "AXToolbar",
-    "AXDisclosureTriangle",
-  ]
-  private let ignoredActions = [
-    "AXShowMenu",
-    "AXScrollToVisible",
-    "AXShowDefaultUI",
-    "AXShowAlternateUI",
-  ]
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()

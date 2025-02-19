@@ -9,18 +9,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     AppEventManager.add(GridListener())
   }
 
-  func perf() {
-    // ----
-    // poll, but is polling 10k elems is any faster, or may be purge every n
-    // elements? purge if the role is not avialable
-    // ----
-    // keep track of the window and if the window is visible?, nahh,
-    // may be dfs from parent if parent is not available it's safe to assume
-    // ----
-    // set some max per tick?
-    // ----
-  }
-
   func applicationDidFinishLaunching(_ notification: Notification) {
     if !AXIsProcessTrusted() {
       return print("AXIsProcessTrusted is false")

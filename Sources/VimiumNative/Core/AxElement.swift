@@ -60,7 +60,6 @@ final class AxElement: @unchecked Sendable {
   }
 
   private func setup() {
-    // PERF: May be doing each query on seperate thread?
     self.setDimensions()
     self.setRole()
   }
@@ -156,8 +155,9 @@ final class AxElement: @unchecked Sendable {
     if elRect.height == frame.height || elRect.width == frame.width {
       return true
     }
+
     let parentRects = parents.map { el in
-      guard let rect = el.bound else {
+      guard let rect = el.bound, el.role != "AXGroup" else {
         let max = CGFloat(Float.greatestFiniteMagnitude)
         let min = CGFloat(-Float.greatestFiniteMagnitude)
         return (maxX: max, maxY: max, minX: min, minY: min)

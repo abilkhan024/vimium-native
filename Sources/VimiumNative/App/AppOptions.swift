@@ -13,12 +13,6 @@ final class AppOptions {
   // text nodes, but it may slowdown rendering, sometimes significantly
   // P.s HomeRow doesn't do it, that's why it's false by default
   var hintText = false
-  // INFO: Position of the hint relative to the point that it hints
-  var hintPosition = HintPosition.bottom
-  enum HintPosition {
-    case top
-    case bottom
-  }
   // INFO: How to determine if the element is hintable, .role replicates
   // homerow behaviour, and generally faster, but ignores some elements
   // ----------------------------------------------------------------
@@ -34,7 +28,7 @@ final class AppOptions {
   var grid = (rows: 36, cols: 36, fontSize: 14 as CGFloat)
 
   // INFO: When developing and want to check performance
-  let debugPerf = false
+  let debugPerf = true
 
   private func proccessOptions(_ options: String) {
     for option in options.components(separatedBy: .newlines) {
@@ -93,15 +87,6 @@ final class AppOptions {
           self.selection = SelectionType.action
         default:
           print("hint_selection must be either action or role")
-        }
-      case "hint_position":
-        switch value {
-        case "top":
-          self.hintPosition = HintPosition.top
-        case "bottom":
-          self.hintPosition = HintPosition.bottom
-        default:
-          print("hint_position must be either top or bottom")
         }
       case "hint_text":
         switch value {
