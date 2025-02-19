@@ -13,6 +13,9 @@ enum Keys: Int64 {
   case right = 124
   case down = 125
   case up = 126
+  case quote = 39
+  case slash = 44
+
   case h = 4
   case j = 38
   case k = 40
@@ -22,7 +25,6 @@ enum Keys: Int64 {
   case d = 2
   case u = 32
   case g = 5
-  case quote = 39
 
   case one = 18
   case two = 19

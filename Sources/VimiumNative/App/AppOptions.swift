@@ -5,28 +5,30 @@ import SwiftUI
 final class AppOptions {
   static let shared = AppOptions()
 
-  enum SelectionType {
-    case role
-    case action
-  }
-
+  // INFO: Colors used for hints 
   var colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
-
   // INFO: Chars that will be used when generating hints
-  var hintChars = "jklhgasdfweruio"  // zxcvbnmqpyt
-
+  var hintChars = "jklhgasdfweruio"
   // INFO: Some websites may use text as buttons, you can enable it to hint the
   // text nodes, but it may slowdown rendering, sometimes significantly
   // P.s HomeRow doesn't do it, that's why it's false by default
   var hintText = false
-
+  // INFO: Position of the hint relative to the point that it hints
+  var hintPosition = HintPosition.bottom
+  enum HintPosition {
+    case top
+    case bottom
+  }
   // INFO: How to determine if the element is hintable, .action is generally
   // better (imho), but .role replicates homerow behaviour
   // ----------------------------------------------------------------
   // action: Shows if element provides non ignored action
   // role: Shows if element role is in hardcoded array
   var selection = SelectionType.role
-
+  enum SelectionType {
+    case role
+    case action
+  }
   // INFO: Rows and cols dimensions when using, grid mode, change is a
   // trade-off between precision and performance
   var grid = (rows: 36, cols: 36, fontSize: 14 as CGFloat)
@@ -62,7 +64,7 @@ final class AppOptions {
         if charsSet.count >= 8 {
           self.hintChars = charsSet.joined(separator: seperator)
         } else {
-          print("At least 8 chars must be used")
+          print("At least 8 chars must be used for hinting")
         }
       case "grid_rows":
 
@@ -91,6 +93,15 @@ final class AppOptions {
           self.selection = SelectionType.action
         default:
           print("hint_selection must be either action or role")
+        }
+      case "hint_position":
+        switch value {
+        case "top":
+          self.hintPosition = HintPosition.top
+        case "bottom":
+          self.hintPosition = HintPosition.bottom
+        default:
+          print("hint_position must be either top or bottom")
         }
       case "hint_text":
         switch value {

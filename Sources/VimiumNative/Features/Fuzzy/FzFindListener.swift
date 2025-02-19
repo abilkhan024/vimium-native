@@ -210,13 +210,13 @@ class FzFindListener: Listener {
       }
       var hints = els.map { e in AxElement(e) }
       hints = self.removeDuplicates(from: hints, within: 8)
+      if AppOptions.shared.debugPerf {
+        print("Removed in \(DispatchTime.now().uptimeNanoseconds - start) for \(els.count)")
+      }
       self.hints = hints
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
       self.state.loading = false
-      if AppOptions.shared.debugPerf {
-        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(els.count)")
-      }
     }
   }
 
@@ -235,6 +235,8 @@ class FzFindListener: Listener {
   private func onTyping(_ event: CGEvent) {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
     switch keyCode {
+    case Keys.slash.rawValue:
+      return  // FZF mode incoming
     case Keys.esc.rawValue:
       return onClose()
     case Keys.quote.rawValue:

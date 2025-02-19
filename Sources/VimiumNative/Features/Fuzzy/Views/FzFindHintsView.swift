@@ -15,7 +15,7 @@ private struct Tooltip<Content: View>: View {
 
   var body: some View {
     let triangle = (width: 8.0, height: 4.0)
-    let isTop = false
+    let isTop = AppOptions.shared.hintPosition == .top
     GeometryReader { geo in
       let height = 14.0
       let y =
@@ -34,7 +34,7 @@ private struct Tooltip<Content: View>: View {
           .fill(backgroundColor)
           .rotationEffect(isTop ? .degrees(180) : .zero)
           .frame(width: triangle.width, height: triangle.height)
-          .offset(x: 0, y: height / 2)
+          .offset(x: 0, y: isTop ? 0 : height / 2)
         if !isTop {
           content
             .background(backgroundColor)
