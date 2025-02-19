@@ -169,7 +169,7 @@ class FzFindListener: Listener {
       return  // FZF mode incoming
     case Keys.esc.rawValue:
       return onClose()
-    case Keys.quote.rawValue:
+    case Keys.semicolon.rawValue:
       self.state.zIndexInverted = !self.state.zIndexInverted
     default:
       guard let char = EventUtils.getEventChar(from: event) else { return }
