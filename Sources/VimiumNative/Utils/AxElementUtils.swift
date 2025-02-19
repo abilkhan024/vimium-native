@@ -79,20 +79,34 @@ class AxElementUtils {
     return stringValue
   }
 
-  // TODO: Doesn't account for table rows or something in tableplus and ps aux
-  static func isVisible(_ el: AXUIElement) -> Bool? {
-    guard let elRect = getBoundingRect(el), let screen = NSScreen.main, let parent = getParent(el),
-      let parentRect = getBoundingRect(parent), let role = getAttributeString(el, kAXRoleAttribute)
+  static func getIsVisible(_ el: AXUIElement, _ parents: [AXUIElement] = []) -> Bool? {
+    guard let elRect = getBoundingRect(el), let screen = NSScreen.main,
+      let role = getAttributeString(el, kAXRoleAttribute)
     else { return nil }
 
     if elRect.height == screen.frame.height || elRect.width == screen.frame.width {
       return true
     }
 
-    if (parentRect.maxX < elRect.minX || parentRect.maxY < elRect.minY) && role != "AXGroup"
-      && role != "AXMenu"
-    {
-      return false
+    let parentRects = parents.map { el in
+      guard let rect = getBoundingRect(el) else {
+        let max = CGFloat(Float.greatestFiniteMagnitude)
+        let min = CGFloat(-Float.greatestFiniteMagnitude)
+        return (maxX: max, maxY: max, minX: min, minY: min)
+      }
+      return (maxX: rect.maxX, maxY: rect.maxY, minX: rect.minX, minY: rect.minY)
+    }
+
+    if role != "AXGroup" && role != "AXMenu" {
+      if let maxX = parentRects.map({ e in e.maxX }).min(), maxX - elRect.minX <= 1 {
+        return false
+      } else if let maxY = parentRects.map({ e in e.maxY }).min(), maxY - elRect.minY <= 1 {
+        return false
+      } else if let minX = parentRects.map({ e in e.minX }).max(), elRect.maxX - minX <= 1 {
+        return false
+      } else if let minY = parentRects.map({ e in e.minY }).max(), elRect.maxY - minY <= 1 {
+        return false
+      }
     }
 
     return elRect.height > 1 && elRect.width > 1

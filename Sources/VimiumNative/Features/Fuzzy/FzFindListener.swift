@@ -52,7 +52,6 @@ class FzFindListener: Listener {
   // 3. Doesn't show handles for activity cells in monitor
   private func getVisibleEls() -> [AXUIElement] {
     let wg = DispatchGroup()
-    let queue = DispatchQueue(label: "thread-safe-obj", attributes: .concurrent)
     let hintText = AppOptions.shared.hintText
     let roleBased = AppOptions.shared.selection == .role
 
@@ -60,6 +59,7 @@ class FzFindListener: Listener {
       return []
     }
     nonisolated(unsafe) var result: [AXUIElement] = []
+    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
 
     @Sendable
     func isHintable(_ el: AXUIElement) -> Bool {
@@ -105,8 +105,8 @@ class FzFindListener: Listener {
     }
 
     @Sendable
-    func dfs(_ el: AXUIElement) {
-      let visible = AxElementUtils.isVisible(el)
+    func dfs(_ el: AXUIElement, _ parents: [AXUIElement]) {
+      let visible = AxElementUtils.getIsVisible(el, parents)
       if visible == false {
         return
       }
@@ -121,6 +121,7 @@ class FzFindListener: Listener {
 
       var childrenRef: CFTypeRef?
 
+      let childParents = parents + [el]
       let childResult = AXUIElementCopyAttributeValue(
         el, kAXChildrenAttribute as CFString, &childrenRef)
       if childResult == .success, let children = childrenRef as? [AXUIElement] {
@@ -129,7 +130,7 @@ class FzFindListener: Listener {
         }
         DispatchQueue.global(qos: .userInteractive).async {
           DispatchQueue.concurrentPerform(iterations: children.count) { i in
-            dfs(children[i])
+            dfs(children[i], childParents)
             wg.leave()
           }
         }
@@ -140,10 +141,11 @@ class FzFindListener: Listener {
     let appEl = AXUIElementCreateApplication(pid)
 
     var winRef: CFTypeRef?
-    let sub = AXUIElementCopyAttributeValue(appEl, kAXMainWindowAttribute as CFString, &winRef)
+    let winResult = AXUIElementCopyAttributeValue(
+      appEl, kAXMainWindowAttribute as CFString, &winRef)
 
-    guard sub == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
-    dfs(mainWindow)
+    guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
+    dfs(mainWindow, [])
     wg.wait()
 
     return result
