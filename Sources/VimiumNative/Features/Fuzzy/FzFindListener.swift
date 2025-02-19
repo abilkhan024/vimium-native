@@ -50,92 +50,16 @@ class FzFindListener: Listener {
   // 1. Must get system from top right half using func above
   // 2. Need some validation for tableplus
   // 3. Doesn't show handles for activity cells in monitor
-  private func getVisibleEls() -> [AXUIElement] {
+  private func getVisibleEls() -> [AxElement] {
     let wg = DispatchGroup()
     let hintText = AppOptions.shared.hintText
     let roleBased = AppOptions.shared.selection == .role
 
-    guard let app = NSWorkspace.shared.frontmostApplication else {
+    guard let app = NSWorkspace.shared.frontmostApplication, let screen = NSScreen.main else {
       return []
     }
-    nonisolated(unsafe) var result: [AXUIElement] = []
-    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
-
-    @Sendable
-    func isHintable(_ el: AXUIElement) -> Bool {
-      guard let role = AxElementUtils.getAttributeString(el, kAXRoleAttribute) else {
-        return false
-      }
-      if hintText && role == "AXStaticText" {
-        return true
-      }
-
-      if roleBased {
-        return hintableRoles.contains(role)
-      }
-
-      if role == "AXImage" || role == "AXCell" {
-        return true
-      }
-
-      if role == "AXWindow" || role == "AXScrollArea" {
-        return false
-      }
-
-      var names: CFArray?
-      let error = AXUIElementCopyActionNames(el, &names)
-
-      if error != .success {
-        return false
-      }
-
-      let actions = names! as [AnyObject] as! [String]
-      var count = 0
-      for ignored in ignoredActions {
-        for action in actions {
-          if action == ignored {
-            count += 1
-          }
-        }
-      }
-
-      let hasActions = actions.count > count
-
-      return hasActions
-    }
-
-    @Sendable
-    func dfs(_ el: AXUIElement, _ parents: [AXUIElement]) {
-      let visible = AxElementUtils.getIsVisible(el, parents)
-      if visible == false {
-        return
-      }
-
-      if isHintable(el) {
-        wg.enter()
-        queue.async(flags: .barrier) {
-          wg.leave()
-          result.append(el)
-        }
-      }
-
-      var childrenRef: CFTypeRef?
-
-      let childParents = parents + [el]
-      let childResult = AXUIElementCopyAttributeValue(
-        el, kAXChildrenAttribute as CFString, &childrenRef)
-      if childResult == .success, let children = childrenRef as? [AXUIElement] {
-        for _ in children {
-          wg.enter()
-        }
-        DispatchQueue.global(qos: .userInteractive).async {
-          DispatchQueue.concurrentPerform(iterations: children.count) { i in
-            dfs(children[i], childParents)
-            wg.leave()
-          }
-        }
-      }
-    }
+    let frame = AxElement.Frame(height: screen.frame.height, width: screen.frame.width)
+    let flags = AxElement.Flags(hintText: hintText, roleBased: roleBased)
 
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
@@ -145,7 +69,47 @@ class FzFindListener: Listener {
       appEl, kAXMainWindowAttribute as CFString, &winRef)
 
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
-    dfs(mainWindow, [])
+
+    nonisolated(unsafe) var result: [AxElement] = []
+    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
+
+    @Sendable
+    func dfs(_ el: AxElement, _ parents: [AxElement]) {
+      let visible = el.getIsVisible(frame, parents)
+      if visible == false {
+        return
+      }
+      var childrenRef: CFTypeRef?
+
+      let childParents = parents + [el]
+      let childResult = AXUIElementCopyAttributeValue(
+        el.raw, kAXChildrenAttribute as CFString, &childrenRef)
+      if childResult == .success, let children = childrenRef as? [AXUIElement] {
+        for _ in children {
+          wg.enter()
+        }
+        DispatchQueue.global(qos: .userInteractive).async {
+          DispatchQueue.concurrentPerform(iterations: children.count) { i in
+            dfs(AxElement(children[i]), childParents)
+            wg.leave()
+          }
+        }
+      }
+
+      if el.getIsHintable(flags) {
+        wg.enter()
+        queue.async(flags: .barrier) {
+          wg.leave()
+          result.append(el)
+        }
+      }
+    }
+
+    wg.enter()
+    DispatchQueue.global(qos: .userInteractive).async {
+      dfs(AxElement(mainWindow), [])
+      wg.leave()
+    }
     wg.wait()
 
     return result
@@ -206,14 +170,9 @@ class FzFindListener: Listener {
 
     DispatchQueue.main.async {
       let start = DispatchTime.now().uptimeNanoseconds
-      let els = self.getVisibleEls()
+      let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 8)
       if AppOptions.shared.debugPerf {
-        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(els.count)")
-      }
-      var hints = els.map { e in AxElement(e) }
-      hints = self.removeDuplicates(from: hints, within: 8)
-      if AppOptions.shared.debugPerf {
-        print("Removed in \(DispatchTime.now().uptimeNanoseconds - start) for \(els.count)")
+        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
       }
       self.hints = hints
       self.state.hints = self.hints

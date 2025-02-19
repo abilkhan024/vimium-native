@@ -5,7 +5,7 @@ import SwiftUI
 final class AppOptions {
   static let shared = AppOptions()
 
-  // INFO: Colors used for hints 
+  // INFO: Colors used for hints
   var colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
   // INFO: Chars that will be used when generating hints
   var hintChars = "jklhgasdfweruio"
@@ -19,8 +19,8 @@ final class AppOptions {
     case top
     case bottom
   }
-  // INFO: How to determine if the element is hintable, .action is generally
-  // better (imho), but .role replicates homerow behaviour
+  // INFO: How to determine if the element is hintable, .role replicates
+  // homerow behaviour, and generally faster, but ignores some elements
   // ----------------------------------------------------------------
   // action: Shows if element provides non ignored action
   // role: Shows if element role is in hardcoded array
