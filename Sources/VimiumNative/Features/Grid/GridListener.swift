@@ -136,8 +136,11 @@ class GridListener: Listener {
     case Keys.g.rawValue:
       return moveRelative(
         scroll: true, offsetX: 0, offsetY: isShifting ? 1 : -1, scale: scale * 9999)
-    case Keys.m.rawValue:
-      return EventUtils.click()
+    case Keys.comma.rawValue:
+      if let event = CGEvent(source: nil) {
+        let current = event.location
+        EventUtils.leftClick(current, event.flags)
+      }
     default:
       return
     }

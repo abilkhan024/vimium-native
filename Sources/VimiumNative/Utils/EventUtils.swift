@@ -41,13 +41,6 @@ class EventUtils {
     return point
   }
 
-  static func click() {
-    if let event = CGEvent(source: nil) {
-      let current = event.location
-      leftClick(current)
-    }
-  }
-
   static func leftMouseDown(_ point: CGPoint, _ flags: CGEventFlags = []) {
     postMouse(.leftMouseDown, .left, point, flags)
   }

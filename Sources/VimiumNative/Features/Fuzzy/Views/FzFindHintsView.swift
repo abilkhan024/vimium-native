@@ -16,8 +16,8 @@ private struct Tooltip<Content: View>: View {
   var body: some View {
     let triangle = (width: 8.0, height: 4.0)
     GeometryReader { geo in
-      let isTop = geo.frame(in: .global).maxY / 2 < position.y
       let height = 14.0
+      let isTop = geo.frame(in: .global).maxY - height * 2 < position.y
       let y =
         isTop
         ? (position.y - geo.frame(in: .global).minY - height)
