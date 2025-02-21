@@ -11,7 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     if !AXIsProcessTrusted() {
-      return print("AXIsProcessTrusted is false")
+      return print("AXIsProcessTrusted is false, allow a11y to the runner")
     }
     AppEventManager.listen()
     print("Listening to trigger key")
@@ -25,4 +25,4 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 let delegate = AppDelegate()
 NSApplication.shared.delegate = delegate
 NSApplication.shared.setActivationPolicy(NSApplication.ActivationPolicy.accessory)
-NSApplication.shared.run()
+AppCommands.shared.run()
