@@ -48,15 +48,6 @@ final class AppCommands {
     } catch {
       return false
     }
-
-    // let p = Process()
-    // p.launchPath = Deps.killall.rawValue
-    // p.processIdentifier
-    // let name = URL(fileURLWithPath: appPath).lastPathComponent
-    // // p.arguments = ["\"\(name) \(Action.daemon.rawValue)\""]
-    // p.arguments = [name]
-    // try? p.run()
-    // p.waitUntilExit()
   }
 
   func runMenu() {

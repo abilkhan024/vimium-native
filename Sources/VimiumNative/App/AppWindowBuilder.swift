@@ -20,6 +20,13 @@ class WindowBuilder {
     defer: false
   )
 
+  private func resizeToFit() {
+    if let screen = NSScreen.main {
+      let screenFrame = screen.frame
+      window.setFrame(screenFrame, display: true)
+    }
+  }
+
   init() {
     window.isOpaque = false
     window.backgroundColor = .clear
@@ -27,10 +34,7 @@ class WindowBuilder {
     window.ignoresMouseEvents = true
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
 
-    if let screen = NSScreen.main {
-      let screenFrame = screen.frame
-      window.setFrame(screenFrame, display: true)
-    }
+    resizeToFit()
     let hostingView = NSHostingView(rootView: AnyView(EmptyView()))
     hostingView.frame = NSRect(
       x: 0,
@@ -42,6 +46,7 @@ class WindowBuilder {
   }
 
   func front() -> WindowBuilder {
+    resizeToFit()
     window.makeKeyAndOrderFront(nil)
     return self
   }
@@ -79,6 +84,7 @@ class WindowBuilder {
   }
 
   func native() -> NSWindow {
+    resizeToFit()
     return window
   }
 

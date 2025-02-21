@@ -22,14 +22,6 @@ class GridListener: Listener {
   private var digits = ""
 
   init() {
-    let frame = hintsWindow.native().frame
-    hintsState.rows = AppOptions.shared.grid.rows
-    hintsState.cols = AppOptions.shared.grid.cols
-    hintsState.hintWidth = frame.width / CGFloat(hintsState.cols)
-    hintsState.hintHeight = frame.height / CGFloat(hintsState.rows)
-    hintsState.sequence = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
-    hintsState.matchingCount = hintsState.sequence.count
-
     hintsWindow.render(AnyView(GridHintsView())).call()
     mouseWindow.render(AnyView(GridMouseView(length: 10))).call()
   }
@@ -52,6 +44,14 @@ class GridListener: Listener {
       mouseWindow.front().call()
       moveTo(x: screen.frame.maxX / 2, y: screen.frame.maxY / 2)
     case Keys.comma.rawValue:
+      let frame = hintsWindow.native().frame
+      hintsState.rows = AppOptions.shared.grid.rows
+      hintsState.cols = AppOptions.shared.grid.cols
+      hintsState.hintWidth = frame.width / CGFloat(hintsState.cols)
+      hintsState.hintHeight = frame.height / CGFloat(hintsState.rows)
+      hintsState.sequence = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
+      hintsState.matchingCount = hintsState.sequence.count
+
       if !hintSelected && appListener != nil {
         return
       }
