@@ -1,7 +1,7 @@
 # v0.1 checklist
 
 1. Customization via .config file
-   1.1. Keys for shortcuts
+   - Keys for shortcuts
 2. Better scroll experience
    - Smoother, and option for scroll size
 3. Fuzzy find based on text attr
@@ -9,47 +9,51 @@
 
 ---
 
-# Build
-
-```sh
-# Build in release mode
-swift build -c release
-
-# Run
-.build/release/VimiumNative
-```
-
-# Distribution
+# Installing
 
 ## Prerequisites
+
+Enable following env's so then procceed which ever step you want
 
 ```sh
 export VIMIUM_APP=VimiumNative
 export VIMIUM_APP_ID=com.vimium.$VIMIUM_APP
-# NOTE: Assumes $HOME var is available, also it doesn't respect the value
-# if you change it stick with default please, used for convenience only
+# NOTE: Assumes $HOME var is available
 export VIMIUM_INSTALL_LOCATION=$HOME/bin/$VIMIUM_APP
+# NOTE: VIMIUM_INSTALL_LOCATION won't be respected when installing, so stick
+# with default instead, it's used to make distribution testing convenience only
 ```
 
-## Run
+## Install & Run
 
 ```sh
+# Download and install pkg from `Releases` section
+
+# Run using:
 $VIMIUM_INSTALL_LOCATION/VimiumNative
 ```
 
-## Build for distribution
-
-Showed for transparency of the build step, no need to run it
+## Usage
 
 ```sh
-# Creating installable package
-pkgbuild --root .build/release --identifier $VIMIUM_APP_ID --version 1.0 --install-location $VIMIUM_INSTALL_LOCATION $VIMIUM_APP.pkg
+# Run in foreground, recommended when getting started for the first time
+$VIMIUM_INSTALL_LOCATION/VimiumNative
+
+# Run in daemon (detached mode)
+$VIMIUM_INSTALL_LOCATION/VimiumNative daemon
+
+# Kill the daemon
+$VIMIUM_INSTALL_LOCATION/VimiumNative kill
 ```
 
-## Uninstall distributed version
+### Uninstall
+
+If you didn't like the application you can easily uninstall it by following:
+
+_P.S. constructive criticism is appreciated in the `Issues` section_
 
 ```sh
-# Verify that vars set correctly
+# Verify that env's are set correctly
 echo $VIMIUM_INSTALL_LOCATION
 echo $VIMIUM_APP_ID
 
@@ -61,7 +65,33 @@ sudo pkgutil --forget $VIMIUM_APP_ID
 ls /var/db/receipts/ | grep $VIMIUM_APP_ID | xargs -I{} sudo rm -rf /var/db/receipts/{}
 ```
 
+### `pkgbuild` for distribution
+
+Showed for transparency of the build step, no need to run it
+
+```sh
+# Build the application
+swift build -c release
+
+# Creating installable package
+pkgbuild --root .build/release --identifier $VIMIUM_APP_ID --version 1.0 --install-location $VIMIUM_INSTALL_LOCATION $VIMIUM_APP.pkg
+```
+
+# Building from source
+
+```sh
+# Prerequisite: Clone however you want and cd into the dir
+
+# Build in release mode
+swift build -c release
+
+# Run
+.build/release/VimiumNative
+```
+
 # Development
+
+It's almost the same as you would build from source :)
 
 ```sh
 # Build in debug mode
