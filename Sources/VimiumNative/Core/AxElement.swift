@@ -177,6 +177,7 @@ final class AxElement: @unchecked Sendable {
       }
     }
 
+    // NOTE: Fails in figma left panel, may be do something different
     return elRect.height > 1 && elRect.width > 1
   }
 }

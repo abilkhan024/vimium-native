@@ -1,6 +1,15 @@
 import ApplicationServices
 import Cocoa
+import CoreFoundation
+import CoreGraphics
 import SwiftUI
+
+@_silgen_name("CGSSetConnectionProperty")
+func CGSSetConnectionProperty(
+  _ connection: Int, _ connection2: Int, _ property: CFString, _ value: CFBoolean)
+
+@_silgen_name("_CGSDefaultConnection")
+func _CGSDefaultConnection() -> Int
 
 @MainActor
 class WindowBuilder {
@@ -38,13 +47,30 @@ class WindowBuilder {
     return self
   }
 
+  func hideCursor() -> WindowBuilder {
+    let propertyString = CFStringCreateWithCString(
+      nil, "SetsCursorInBackground", CFStringBuiltInEncodings.UTF8.rawValue)
+    CGSSetConnectionProperty(
+      _CGSDefaultConnection(), _CGSDefaultConnection(), propertyString!, kCFBooleanTrue)
+
+    CGDisplayHideCursor(CGMainDisplayID())
+    return self
+  }
+
+  func showCursor() -> WindowBuilder {
+    CGDisplayShowCursor(CGMainDisplayID())
+    return self
+  }
+
   func hide() -> WindowBuilder {
     window.orderOut(nil)
+    showCursor().call()
     return self
   }
 
   func clear() -> WindowBuilder {
     window.contentView = nil
+    showCursor().call()
     return self
   }
 

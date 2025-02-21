@@ -56,7 +56,7 @@ class GridListener: Listener {
         return
       }
       hintSelected = false
-      hintsWindow.front().call()
+      hintsWindow.front().hideCursor().call()
     default: print("Impossible case")
     }
 
@@ -136,7 +136,7 @@ class GridListener: Listener {
     case Keys.g.rawValue:
       return moveRelative(
         scroll: true, offsetX: 0, offsetY: isShifting ? 1 : -1, scale: scale * 9999)
-    case Keys.comma.rawValue:
+    case Keys.comma.rawValue, Keys.m.rawValue:
       if let event = CGEvent(source: nil) {
         let current = event.location
         EventUtils.leftClick(current, event.flags)
@@ -162,7 +162,11 @@ class GridListener: Listener {
 
   private func moveTo(x: CGFloat, y: CGFloat) {
     mouseState.position = CGPointMake(x, y)
-    EventUtils.move(mouseState.position)
+    if mouseState.dragging {
+      EventUtils.move(mouseState.position, type: .leftMouseDragged)
+    } else {
+      EventUtils.move(mouseState.position)
+    }
   }
 
   private func moveRelative(scroll: Bool, offsetX: Int, offsetY: Int, scale: Int) {

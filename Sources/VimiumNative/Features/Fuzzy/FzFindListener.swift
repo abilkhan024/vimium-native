@@ -132,14 +132,14 @@ class FzFindListener: Listener {
       return
     }
     state.search = ""
-    self.hintsWindow.front().call()
+    self.hintsWindow.front().hideCursor().call()
     state.loading = true
     self.appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(self.appListener!)
 
     DispatchQueue.main.async {
       let start = DispatchTime.now().uptimeNanoseconds
-      let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 8)
+      let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 16)
       if AppOptions.shared.debugPerf {
         print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
       }
