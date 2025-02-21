@@ -180,23 +180,25 @@ final class AxElement: @unchecked Sendable {
     // NOTE: Fails in figma left panel, may be do something different
     return elRect.height > 1 && elRect.width > 1
   }
-}
 
-// func toString(_ el: AXUIElement) -> String? {
-//   let components = [
-//     getAttributeString(el, kAXRoleAttribute) ?? "",
-//     getAttributeString(el, kAXTitleAttribute) ?? "",
-//     getAttributeString(el, kAXValueAttribute) ?? "",
-//     getAttributeString(el, kAXDescriptionAttribute) ?? "",
-//     getAttributeString(el, kAXLabelValueAttribute) ?? "",
-//   ].filter { str in !str.isEmpty }
-//   return components.isEmpty ? nil : components.joined(separator: ", ")
-// }
-//  func getAttributeString(_ el: AXUIElement, _ attribute: String) -> String? {
-//   var value: CFTypeRef?
-//   let result = AXUIElementCopyAttributeValue(el, attribute as CFString, &value)
-//   guard result == .success, let stringValue = value as? String else {
-//     return nil
-//   }
-//   return stringValue
-// }
+  func debug() -> String? {
+    let components = [
+      getAttributeString(kAXRoleAttribute) ?? "",
+      getAttributeString(kAXTitleAttribute) ?? "",
+      getAttributeString(kAXValueAttribute) ?? "",
+      getAttributeString(kAXDescriptionAttribute) ?? "",
+      getAttributeString(kAXLabelValueAttribute) ?? "",
+    ].filter { str in !str.isEmpty }
+
+    return components.isEmpty ? nil : components.joined(separator: ", ")
+  }
+
+  private func getAttributeString(_ attribute: String) -> String? {
+    var value: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(self.raw, attribute as CFString, &value)
+    guard result == .success, let stringValue = value as? String else {
+      return nil
+    }
+    return stringValue
+  }
+}

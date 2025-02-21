@@ -1,28 +1,110 @@
 import CoreGraphics
 @preconcurrency import SwiftUI
 
+@Sendable
+private func dfs(
+  _ el: AxElement, _ parents: [AxElement], _ wg: DispatchGroup, _ frame: AxElement.Frame,
+  _ execQueue: DispatchQueue, _ flags: AxElement.Flags,
+  _ onFound: @escaping @Sendable (_: AxElement) -> Void
+) {
+  let visible = el.getIsVisible(frame, parents)
+  if visible == false {
+    return
+  }
+  var childrenRef: CFTypeRef?
+
+  let childParents = parents + [el]
+  let childResult = AXUIElementCopyAttributeValue(
+    el.raw, kAXChildrenAttribute as CFString, &childrenRef)
+  if childResult == .success, let children = childrenRef as? [AXUIElement] {
+    for child in children {
+      wg.enter()
+      execQueue.async {
+        dfs(AxElement(child), childParents, wg, frame, execQueue, flags, onFound)
+        wg.leave()
+      }
+    }
+  }
+
+  if el.getIsHintable(flags) {
+    onFound(el)
+  }
+}
+
 @MainActor
 class FzFindListener: Listener {
   private let hintsWindow = FzFindWindowManager.get(.hints)
   private var appListener: AppListener?
   private let state = FzFindState.shared
   private var hints: [AxElement] = []
+  private var tmp: WindowBuilder?
+  private let execQueue = DispatchQueue.global(qos: .userInteractive)
+  private let hintText = AppOptions.shared.hintText
+  private let roleBased = AppOptions.shared.selection == .role
+  private var systemMenuItems: [AxElement] = []
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
+    if AppOptions.shared.systemMenuPoll != 0 {
+      Timer.scheduledTimer(
+        withTimeInterval: Double(AppOptions.shared.systemMenuPoll), repeats: true,
+        block: { _ in
+          DispatchQueue.main.async {
+            self.pollSysMenu()
+          }
+        })
+      DispatchQueue.main.async {
+        self.pollSysMenu()
+      }
+    }
   }
 
-  // NOTE: May be doing, AXUIElementCopyElementAtPosition concurently, and
-  // getting all the children of those or something?
-  // ------
+  private func pollSysMenu() {
+    guard let screen = NSScreen.main else { return }
+    let frame = AxElement.Frame(height: screen.frame.height, width: screen.frame.width)
+    let flags = AxElement.Flags(hintText: hintText, roleBased: roleBased)
+    nonisolated(unsafe) var result: [AxElement] = []
+    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
+
+    let onFound: @Sendable (_: AxElement) -> Void = { e in
+      queue.async(flags: .barrier) { result.append(e) }
+    }
+
+    let maxX = screen.frame.maxX
+    let wg = DispatchGroup()
+
+    var min = maxX / 2
+    let max = maxX
+    let step = 11.0
+    let menuBarY: Float = 11.0
+
+    var positionsToCheck: [Float] = []
+    while min + step < max {
+      positionsToCheck.append(Float(min + step / 2))
+      min += step
+    }
+
+    let sys = AXUIElementCreateSystemWide()
+
+    for pos in positionsToCheck {
+      wg.enter()
+      execQueue.async {
+        var el: AXUIElement?
+        let result = AXUIElementCopyElementAtPosition(sys, pos, menuBarY, &el)
+        if result == .success, let axui = el as AXUIElement? {
+          dfs(AxElement(axui), [], wg, frame, self.execQueue, flags, onFound)
+        }
+        wg.leave()
+      }
+    }
+    wg.wait()
+    self.systemMenuItems = result
+  }
+
   // Limitations:
   // 1. Must get system from top right half using func above
-  // 2. Need some validation for tableplus
-  // 3. Doesn't show handles for activity cells in monitor
   private func getVisibleEls() -> [AxElement] {
     let wg = DispatchGroup()
-    let hintText = AppOptions.shared.hintText
-    let roleBased = AppOptions.shared.selection == .role
 
     guard let app = NSWorkspace.shared.frontmostApplication, let screen = NSScreen.main else {
       return []
@@ -39,44 +121,28 @@ class FzFindListener: Listener {
 
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
 
-    nonisolated(unsafe) var result: [AxElement] = []
+    nonisolated(unsafe) var result = systemMenuItems
     let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
-
-    @Sendable
-    func dfs(_ el: AxElement, _ parents: [AxElement]) {
-      let visible = el.getIsVisible(frame, parents)
-      if visible == false {
-        return
-      }
-      var childrenRef: CFTypeRef?
-
-      let childParents = parents + [el]
-      let childResult = AXUIElementCopyAttributeValue(
-        el.raw, kAXChildrenAttribute as CFString, &childrenRef)
-      if childResult == .success, let children = childrenRef as? [AXUIElement] {
-        for _ in children {
-          wg.enter()
-        }
-        DispatchQueue.global(qos: .userInteractive).async {
-          DispatchQueue.concurrentPerform(iterations: children.count) { i in
-            dfs(AxElement(children[i]), childParents)
-            wg.leave()
-          }
-        }
-      }
-
-      if el.getIsHintable(flags) {
-        wg.enter()
-        queue.async(flags: .barrier) {
-          wg.leave()
-          result.append(el)
-        }
-      }
+    let onFound: @Sendable (_: AxElement) -> Void = { e in
+      queue.async(flags: .barrier) { result.append(e) }
     }
 
     wg.enter()
-    DispatchQueue.global(qos: .userInteractive).async {
-      dfs(AxElement(mainWindow), [])
+    execQueue.async {
+      var menuBar: AnyObject?
+
+      let result = AXUIElementCopyAttributeValue(
+        appEl, kAXMenuBarAttribute as CFString, &menuBar)
+
+      if result == .success, let menuBarElement = menuBar as! AXUIElement? {
+        dfs(AxElement(menuBarElement), [], wg, frame, self.execQueue, flags, onFound)
+      }
+      wg.leave()
+    }
+
+    wg.enter()
+    execQueue.async {
+      dfs(AxElement(mainWindow), [], wg, frame, self.execQueue, flags, onFound)
       wg.leave()
     }
     wg.wait()
@@ -90,17 +156,6 @@ class FzFindListener: Listener {
 
     return flags.contains(.maskCommand) && flags.contains(.maskShift)
       && keyCode == Keys.dot.rawValue
-  }
-
-  private func getChildren(_ el: AXUIElement) -> [AXUIElement] {
-    var childrenRef: CFTypeRef?
-
-    let childResult = AXUIElementCopyAttributeValue(
-      el, kAXChildrenAttribute as CFString, &childrenRef)
-    if childResult == .success, let children = childrenRef as? [AXUIElement] {
-      return children
-    }
-    return []
   }
 
   func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {

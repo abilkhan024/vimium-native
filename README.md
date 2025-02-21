@@ -11,6 +11,11 @@
 
 ---
 
+# Known limitations
+
+- Multiple screen navigation, for now works find when in primary only, switch
+  requries restart
+
 # Navigation
 
 - Features

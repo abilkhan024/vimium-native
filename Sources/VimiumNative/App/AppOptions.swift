@@ -5,6 +5,10 @@ import SwiftUI
 final class AppOptions {
   static let shared = AppOptions()
 
+  // INFO: Interval for system menu poll in seconds 0 doesn't poll system menu
+  // therefore won't show it, min value that won't degrade performance is 5
+  var systemMenuPoll = 5
+
   // INFO: Colors used for hints
   var colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
   // INFO: Chars that will be used when generating hints
