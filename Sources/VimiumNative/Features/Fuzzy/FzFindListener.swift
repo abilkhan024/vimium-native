@@ -7,7 +7,7 @@ private func dfs(
   _ execQueue: DispatchQueue, _ flags: AxElement.Flags,
   _ onFound: @escaping @Sendable (_: AxElement) -> Void
 ) {
-  let visible = el.getIsVisible(frame, parents)
+  let visible = el.getIsVisible(frame, parents, flags)
   if visible == false {
     return
   }
@@ -59,10 +59,23 @@ class FzFindListener: Listener {
     }
   }
 
+  private func getAxFlags() -> AxElement.Flags {
+    return AxElement.Flags(
+      traverseHidden: AppOptions.shared.traverseHidden,
+      hintText: hintText,
+      roleBased: roleBased
+    )
+
+  }
+
+  private func getAxFrame(_ screen: NSScreen) -> AxElement.Frame {
+    return AxElement.Frame(height: screen.frame.height, width: screen.frame.width)
+  }
+
   private func pollSysMenu() {
     guard let screen = NSScreen.main else { return }
-    let frame = AxElement.Frame(height: screen.frame.height, width: screen.frame.width)
-    let flags = AxElement.Flags(hintText: hintText, roleBased: roleBased)
+    let frame = getAxFrame(screen)
+    let flags = getAxFlags()
     nonisolated(unsafe) var result: [AxElement] = []
     let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
 
@@ -109,8 +122,8 @@ class FzFindListener: Listener {
     guard let app = NSWorkspace.shared.frontmostApplication, let screen = NSScreen.main else {
       return []
     }
-    let frame = AxElement.Frame(height: screen.frame.height, width: screen.frame.width)
-    let flags = AxElement.Flags(hintText: hintText, roleBased: roleBased)
+    let frame = getAxFrame(screen)
+    let flags = getAxFlags()
 
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)

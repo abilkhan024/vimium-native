@@ -13,6 +13,7 @@ final class AxElement: @unchecked Sendable {
   var point: CGPoint?
 
   struct Flags {
+    let traverseHidden: Bool
     let hintText: Bool
     let roleBased: Bool
   }
@@ -108,7 +109,10 @@ final class AxElement: @unchecked Sendable {
   }
 
   func getIsHintable(_ flags: Flags) -> Bool {
-    guard let role = self.role else {
+    guard let role = self.role, let bound = self.bound else {
+      return false
+    }
+    if bound.height <= 1 || bound.width <= 1 {
       return false
     }
     if flags.hintText && role == "AXStaticText" {
@@ -149,7 +153,7 @@ final class AxElement: @unchecked Sendable {
     return hasActions
   }
 
-  func getIsVisible(_ frame: Frame, _ parents: [AxElement]) -> Bool? {
+  func getIsVisible(_ frame: Frame, _ parents: [AxElement], _ flags: AxElement.Flags) -> Bool? {
     guard let role = self.role, let elRect = self.bound else { return nil }
 
     if elRect.height == frame.height || elRect.width == frame.width {
@@ -177,8 +181,10 @@ final class AxElement: @unchecked Sendable {
       }
     }
 
-    // NOTE: Fails in figma left panel, may be do something different
-    return elRect.height > 1 && elRect.width > 1
+    if !flags.traverseHidden {
+      return elRect.height > 1 && elRect.width > 1
+    }
+    return true
   }
 
   func debug() -> String? {

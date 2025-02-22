@@ -1,13 +1,18 @@
 import SwiftUI
 
+// TODO: May be allow changing them on the fly via some shortcut
 // INFO: Defaulting to HomeRow alternative
 @MainActor
 final class AppOptions {
   static let shared = AppOptions()
 
+  // INFO: Traverse the children of the node if the node has dimensions of <=1
+  // Generally advised against, because slows down perf
+  var traverseHidden = false
+
   // INFO: Interval for system menu poll in seconds 0 doesn't poll system menu
-  // therefore won't show it, min value that won't degrade performance is 5
-  var systemMenuPoll = 5
+  // therefore won't show it, min value that won't degrade performance is 10
+  var systemMenuPoll = 10
 
   // INFO: Colors used for hints
   var colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
@@ -65,7 +70,6 @@ final class AppOptions {
           print("At least 8 chars must be used for hinting")
         }
       case "grid_rows":
-
         if let val = Int(value) {
           self.grid.rows = val
         } else {
@@ -100,6 +104,21 @@ final class AppOptions {
           self.hintText = false
         default:
           print("hint_text must be either true or false")
+        }
+      case "system_menu_poll":
+        if let val = Int(value), val == 0 || val >= 10 {
+          self.systemMenuPoll = val
+        } else {
+          print("grid_rows must be a positive int")
+        }
+      case "traverse_hidden":
+        switch value {
+        case "true":
+          self.traverseHidden = true
+        case "false":
+          self.traverseHidden = false
+        default:
+          print("traverse_hidden must be either true or false")
         }
       default: continue
       }
