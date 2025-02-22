@@ -18,10 +18,9 @@ Enable following env's so then procceed which ever step you want
 ```sh
 export VIMIUM_APP=VimiumNative
 export VIMIUM_APP_ID=com.vimium.$VIMIUM_APP
-# NOTE: Assumes $HOME var is available
-export VIMIUM_INSTALL_LOCATION=$HOME/bin/$VIMIUM_APP
 # NOTE: VIMIUM_INSTALL_LOCATION won't be respected when installing, so stick
 # with default instead, it's used to make distribution testing convenience only
+export VIMIUM_INSTALL_LOCATION=/usr/local/bin/$VIMIUM_APP
 ```
 
 ## Install & Run
