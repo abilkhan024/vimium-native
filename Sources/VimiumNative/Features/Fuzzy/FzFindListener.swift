@@ -39,8 +39,6 @@ class FzFindListener: Listener {
   private var hints: [AxElement] = []
   private var tmp: WindowBuilder?
   private let execQueue = DispatchQueue.global(qos: .userInteractive)
-  private let hintText = AppOptions.shared.hintText
-  private let roleBased = AppOptions.shared.selection == .role
   private var systemMenuItems: [AxElement] = []
 
   init() {
@@ -62,8 +60,8 @@ class FzFindListener: Listener {
   private func getAxFlags() -> AxElement.Flags {
     return AxElement.Flags(
       traverseHidden: AppOptions.shared.traverseHidden,
-      hintText: hintText,
-      roleBased: roleBased
+      hintText: AppOptions.shared.hintText,
+      roleBased: AppOptions.shared.selection == .role
     )
 
   }
@@ -128,6 +126,9 @@ class FzFindListener: Listener {
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
 
+    if CommandLine.arguments.contains("eui-app-set") {
+      AXUIElementSetAttributeValue(appEl, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+    }
     var winRef: CFTypeRef?
     let winResult = AXUIElementCopyAttributeValue(
       appEl, kAXMainWindowAttribute as CFString, &winRef)
@@ -208,9 +209,9 @@ class FzFindListener: Listener {
     DispatchQueue.main.async {
       let start = DispatchTime.now().uptimeNanoseconds
       let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 16)
-      if AppOptions.shared.debugPerf {
-        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
-      }
+      // if AppOptions.shared.debugPerf {
+      print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
+      // }
       self.hints = hints
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)

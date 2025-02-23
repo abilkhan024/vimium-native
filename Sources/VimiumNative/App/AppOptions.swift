@@ -37,7 +37,7 @@ final class AppOptions {
   var grid = (rows: 36, cols: 36, fontSize: 14 as CGFloat)
 
   // INFO: When developing and want to check performance
-  let debugPerf = true
+  var debugPerf = false
 
   private func proccessOptions(_ options: String) {
     for option in options.components(separatedBy: .newlines) {
@@ -95,6 +95,15 @@ final class AppOptions {
           self.selection = SelectionType.action
         default:
           print("hint_selection must be either action or role")
+        }
+      case "debug_perf":
+        switch value {
+        case "true":
+          self.debugPerf = true
+        case "false":
+          self.debugPerf = false
+        default:
+          print("debug_perf must be either true or false")
         }
       case "hint_text":
         switch value {
