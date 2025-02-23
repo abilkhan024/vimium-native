@@ -63,18 +63,38 @@ final class AppCommands {
     app.run()
   }
 
+  func showHelp(entered: String) {
+    print(
+      """
+
+        What do you mean by '\(entered)'?
+
+        May be you want to:
+
+            vimium daemon - Run in daemon mode
+            vimium kill - Kill process running daemon mode
+            vimium - Run in foreground
+
+      """)
+  }
+
   func run() {
-    if CommandLine.arguments.contains(Action.kill.rawValue) {
+    if CommandLine.arguments.count == 1 {
+      return runMenu()
+    }
+    let command = CommandLine.arguments[1]
+    switch command {
+    case Action.kill.rawValue:
       if !killRunning() {
         print("Didn't find any daemons")
       }
       exit(0)
-    } else if CommandLine.arguments.contains(Action.daemon.rawValue) {
+    case Action.daemon.rawValue:
       let _ = killRunning()
       daemonize()
       exit(0)
-    } else {
-      runMenu()
+    default:
+      showHelp(entered: command)
     }
   }
 }
