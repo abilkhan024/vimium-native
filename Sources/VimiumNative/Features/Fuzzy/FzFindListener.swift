@@ -226,6 +226,8 @@ class FzFindListener: Listener {
         AppEventManager.remove(listener)
         self.appListener = nil
       }
+      self.state.fzfSelectedIdx = -1
+      self.state.fzfMode = false
       self.state.hints = []
       self.state.search = ""
     }

@@ -213,10 +213,12 @@ final class AxElement: @unchecked Sendable {
     if self.searchTerm != nil {
       return self.searchTerm!
     }
-    if let value = getAttributeString(kAXValueAttribute) {
-      self.searchTerm = value
-    } else if let description = getAttributeString(kAXDescriptionAttribute) {
-      self.searchTerm = description
+    if let val = getAttributeString(kAXValueAttribute), !val.isEmpty {
+      self.searchTerm = val
+    } else if let val = getAttributeString(kAXDescriptionAttribute), !val.isEmpty {
+      self.searchTerm = val
+    } else if let val = getAttributeString(kAXTitleAttribute), !val.isEmpty {
+      self.searchTerm = val
     } else {
       self.searchTerm = ""
     }
@@ -224,7 +226,7 @@ final class AxElement: @unchecked Sendable {
     return self.searchTerm!
   }
 
-  func debug() -> String? {
+  func debug() -> String {
     let components = [
       getAttributeString(kAXRoleAttribute) ?? "",
       getAttributeString(kAXTitleAttribute) ?? "",
@@ -233,7 +235,7 @@ final class AxElement: @unchecked Sendable {
       getAttributeString(kAXLabelValueAttribute) ?? "",
     ].filter { str in !str.isEmpty }
 
-    return components.isEmpty ? nil : components.joined(separator: ", ")
+    return components.isEmpty ? "NO_DEBUG_INFO" : components.joined(separator: ", ")
   }
 
   private func getAttributeString(_ attribute: String) -> String? {
