@@ -114,7 +114,16 @@ class GridListener: Listener {
       self.digits.append(char)
     case Keys.v.rawValue:
       mouseState.dragging = !mouseState.dragging
-      return EventUtils.leftMouseDown(self.mouseState.position)
+      EventUtils.leftMouseDown(self.mouseState.position)
+
+      if AppOptions.shared.jiggleWhenDragging {
+        DispatchQueue.main.asyncAfter(deadline: .now()) {
+          self.moveRelative(scroll: false, offsetX: 1, offsetY: 0, scale: 5)
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+            self.moveRelative(scroll: false, offsetX: -1, offsetY: 0, scale: 5)
+          }
+        }
+      }
     case Keys.dot.rawValue:
       return EventUtils.rightClick(self.mouseState.position)
     case Keys.esc.rawValue:

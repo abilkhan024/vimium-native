@@ -28,7 +28,7 @@ final class AppCommands {
     try? p.run()
     do {
       try "\(p.processIdentifier)".write(toFile: daemonPath, atomically: true, encoding: .utf8)
-      print("Started in daemon mode \(p.processIdentifier)")
+      print("Started in daemon mode, PID: \(p.processIdentifier)")
     } catch {
       print("Failed to write daemon pid, terminating")
       p.terminate()

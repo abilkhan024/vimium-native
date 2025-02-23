@@ -36,8 +36,33 @@ final class AppOptions {
   // trade-off between precision and performance
   var grid = (rows: 36, cols: 36, fontSize: 14 as CGFloat)
 
+  // INFO: Sometimes macos refuses to register drag when you immidetly jump
+  // between labels, you can enable this flag that will jiggle once you start
+  // dragging
+  var jiggleWhenDragging = false
+
   // INFO: When developing and want to check performance
   var debugPerf = false
+
+  private func parseInt(value: String, field: String) -> Int? {
+    guard let value = Int(value) else {
+      print("\(field) must be int")
+      return nil
+    }
+    return value
+  }
+
+  private func parseBool(value: String, field: String) -> Bool? {
+    switch value {
+    case "true":
+      return true
+    case "false":
+      return false
+    default:
+      print("\(field) must be either true or false")
+      return nil
+    }
+  }
 
   private func proccessOptions(_ options: String) {
     for option in options.components(separatedBy: .newlines) {
@@ -45,17 +70,17 @@ final class AppOptions {
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "jiggle_when_dragging":
+        if let val = parseBool(value: value, field: "jiggle_when_dragging") {
+          self.jiggleWhenDragging = val
+        }
       case "color_fg":
-        if let val = getColor(from: value) {
+        if let val = parseColor(from: value, field: "color_fg") {
           self.colors.fg = val
-        } else {
-          print("color_fg must be a hex string, e.g. #000000")
         }
       case "color_bg":
-        if let val = getColor(from: value) {
+        if let val = parseColor(from: value, field: "color_fg") {
           self.colors.bg = val
-        } else {
-          print("color_bg must be a hex string, e.g. #000000")
         }
       case "hint_chars":
         var charsSet = Set<String>()
@@ -70,16 +95,12 @@ final class AppOptions {
           print("At least 8 chars must be used for hinting")
         }
       case "grid_rows":
-        if let val = Int(value) {
+        if let val = parseInt(value: value, field: "grid_cols") {
           self.grid.rows = val
-        } else {
-          print("grid_rows must be a int")
         }
       case "grid_cols":
-        if let val = Int(value) {
+        if let val = parseInt(value: value, field: "grid_cols") {
           self.grid.cols = val
-        } else {
-          print("grid_cols must be a Int")
         }
       case "grid_font_size":
         if let size = Float(value) {
@@ -97,48 +118,36 @@ final class AppOptions {
           print("hint_selection must be either action or role")
         }
       case "debug_perf":
-        switch value {
-        case "true":
-          self.debugPerf = true
-        case "false":
-          self.debugPerf = false
-        default:
-          print("debug_perf must be either true or false")
+        if let val = parseBool(value: value, field: "debug_perf") {
+          self.debugPerf = val
         }
       case "hint_text":
-        switch value {
-        case "true":
-          self.hintText = true
-        case "false":
-          self.hintText = false
-        default:
-          print("hint_text must be either true or false")
+        if let val = parseBool(value: value, field: "hint_text") {
+          self.hintText = val
         }
       case "system_menu_poll":
         if let val = Int(value), val == 0 || val >= 10 {
           self.systemMenuPoll = val
         } else {
-          print("grid_rows must be a positive int")
+          print("grid_rows must be 0 or greater than 10")
         }
       case "traverse_hidden":
-        switch value {
-        case "true":
-          self.traverseHidden = true
-        case "false":
-          self.traverseHidden = false
-        default:
-          print("traverse_hidden must be either true or false")
+        if let val = parseBool(value: value, field: "traverse_hidden") {
+          self.traverseHidden = val
         }
       default: continue
       }
     }
   }
 
-  private func getColor(from hex: String) -> Color? {
+  private func parseColor(from hex: String, field: String) -> Color? {
     var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
     hexSanitized = hexSanitized.hasPrefix("#") ? String(hexSanitized.dropFirst()) : hexSanitized
 
-    guard hexSanitized.count == 6 || hexSanitized.count == 8 else { return nil }
+    guard hexSanitized.count == 6 || hexSanitized.count == 8 else {
+      print("\(field) must be a hex string, e.g. #000000")
+      return nil
+    }
 
     var rgbValue: UInt64 = 0
     Scanner(string: hexSanitized).scanHexInt64(&rgbValue)

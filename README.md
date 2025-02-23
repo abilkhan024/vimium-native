@@ -4,8 +4,6 @@
    - Keys for shortcuts
 2. Better scroll experience
    - Smoother, and option for scroll size
-3. Fuzzy find based on text attr
-   - Must tab/s-tab between hints?
 
 ---
 
