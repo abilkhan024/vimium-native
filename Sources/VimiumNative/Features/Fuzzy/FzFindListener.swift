@@ -235,14 +235,63 @@ class FzFindListener: Listener {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
     switch keyCode {
     case Keys.slash.rawValue:
-      return  // FZF mode incoming
+      self.state.fzfMode = true
+      self.state.search = ""
     case Keys.esc.rawValue:
       return onClose()
     case Keys.semicolon.rawValue:
       self.state.zIndexInverted = !self.state.zIndexInverted
+    case Keys.tab.rawValue:
+      if !self.state.fzfMode {
+        fallthrough
+      }
+      let isShifting = event.flags.contains(.maskShift)
+      let search = self.state.search.lowercased().replacingOccurrences(of: " ", with: "")
+      let idxs = self.state.hints.indices.filter { i in
+        self.state.hints[i].getSearchTerm().contains(search)
+      }
+      if idxs.isEmpty {
+        return
+      }
+      guard let curIdx = idxs.firstIndex(of: self.state.fzfSelectedIdx) else {
+        return print("That should never happen")
+      }
+      let nextIdx = isShifting ? idxs[max(curIdx - 1, 0)] : idxs[min(curIdx + 1, idxs.count - 1)]
+      self.state.fzfSelectedIdx = nextIdx
+    case Keys.enter.rawValue:
+      if !self.state.fzfMode {
+        fallthrough
+      }
+      if self.state.fzfSelectedIdx != -1, let point = self.hints[self.state.fzfSelectedIdx].point {
+        EventUtils.leftClick(point, event.flags)
+        onClose()
+      }
+    case Keys.backspace.rawValue:
+      if !self.state.fzfMode {
+        fallthrough
+      }
+      if !state.search.isEmpty {
+        state.search.removeLast()
+      }
     default:
       guard let char = EventUtils.getEventChar(from: event) else { return }
       state.search.append(char)
+      if self.state.fzfMode {
+        let search = self.state.search.lowercased().replacingOccurrences(of: " ", with: "")
+        if self.state.fzfSelectedIdx != -1
+          && self.state.hints[self.state.fzfSelectedIdx].getSearchTerm().contains(search)
+        {
+          return
+        }
+        if let defaultIdx = self.state.hints.firstIndex(where: { e in
+          e.getSearchTerm().contains(search)
+        }) {
+          self.state.fzfSelectedIdx = defaultIdx
+        } else {
+          self.state.fzfSelectedIdx = -1
+        }
+        return
+      }
       if self.state.texts.firstIndex(where: { str in str.starts(with: state.search) }) == nil {
         return onClose()
       }

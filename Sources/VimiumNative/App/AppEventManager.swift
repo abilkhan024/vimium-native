@@ -16,6 +16,7 @@ enum Keys: Int64 {
   case quote = 39
   case slash = 44
   case semicolon = 41
+  case tab = 48
 
   case h = 4
   case j = 38

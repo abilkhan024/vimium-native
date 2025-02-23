@@ -11,6 +11,7 @@ final class AxElement: @unchecked Sendable {
   var rawPoint: CGPoint?
   // Point of the hint as opposed to element itself
   var point: CGPoint?
+  private var searchTerm: String?
 
   struct Flags {
     let traverseHidden: Bool
@@ -153,6 +154,27 @@ final class AxElement: @unchecked Sendable {
     return hasActions
   }
 
+  // NOTE: Until next time can do dynamic refetch with new config params
+  // private var childRequested = false
+  // var children: [Child] = []
+  // struct Child {
+  //   let raw: AXUIElement
+  //   var wrapped: AxElement?
+  // }
+  // func getChildren() -> [Child] {
+  //   if childRequested {
+  //     return self.children
+  //   }
+  //   var childrenRef: CFTypeRef?
+  //   let childResult = AXUIElementCopyAttributeValue(
+  //     self.raw, kAXChildrenAttribute as CFString, &childrenRef)
+  //   self.childRequested = true
+  //   if childResult == .success, let children = childrenRef as? [AXUIElement] {
+  //     self.children = children.map { raw in Child(raw: raw, wrapped: nil) }
+  //   }
+  //   return self.children
+  // }
+
   func getIsVisible(_ frame: Frame, _ parents: [AxElement], _ flags: AxElement.Flags) -> Bool? {
     guard let role = self.role, let elRect = self.bound else { return nil }
 
@@ -185,6 +207,21 @@ final class AxElement: @unchecked Sendable {
       return elRect.height > 1 && elRect.width > 1
     }
     return true
+  }
+
+  func getSearchTerm() -> String {
+    if self.searchTerm != nil {
+      return self.searchTerm!
+    }
+    if let value = getAttributeString(kAXValueAttribute) {
+      self.searchTerm = value
+    } else if let description = getAttributeString(kAXDescriptionAttribute) {
+      self.searchTerm = description
+    } else {
+      self.searchTerm = ""
+    }
+    self.searchTerm = self.searchTerm!.lowercased().replacingOccurrences(of: " ", with: "")
+    return self.searchTerm!
   }
 
   func debug() -> String? {
