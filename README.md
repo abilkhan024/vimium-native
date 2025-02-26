@@ -7,43 +7,23 @@
 
 ---
 
-# Installing
+# Usage
 
-## Prerequisites
+## Install
 
-Enable following env's so then procceed which ever step you want
+Install pkg from
+[Releases](https://github.com/abilkhan024/vimium-native/releases) section.
 
-```sh
-export VIMIUM_APP=VimiumNative
-export VIMIUM_APP_ID=com.vimium.$VIMIUM_APP
-# NOTE: VIMIUM_INSTALL_LOCATION won't be respected when installing, so stick
-# with default instead, it's used to make distribution testing convenience only
-export VIMIUM_INSTALL_LOCATION=/usr/local/bin/$VIMIUM_APP
-```
+## Run
 
-## Install & Run
+After installing pkg binary will be available that you can run you can add alias
+in your rc file
 
 ```sh
-# Download and install pkg from `Releases` section
-
-# Run using:
-$VIMIUM_INSTALL_LOCATION/VimiumNative
+/usr/local/bin/VimiumNative/VimiumNative
 ```
 
-## Usage
-
-```sh
-# Run in foreground, recommended when getting started for the first time
-$VIMIUM_INSTALL_LOCATION/VimiumNative
-
-# Run in daemon (detached mode)
-$VIMIUM_INSTALL_LOCATION/VimiumNative daemon
-
-# Kill the daemon
-$VIMIUM_INSTALL_LOCATION/VimiumNative kill
-```
-
-### Uninstall
+## Uninstall
 
 If you didn't like the application you can easily uninstall it by following:
 
@@ -51,15 +31,12 @@ _P.S. constructive criticism is appreciated in the `Issues` section_
 
 ```sh
 # Verify that env's are set correctly
-echo $VIMIUM_INSTALL_LOCATION
-echo $VIMIUM_APP_ID
-
 # Remove files
-sudo rm -rf $VIMIUM_INSTALL_LOCATION
+sudo rm -rf /usr/local/bin/VimiumNative
 # Forget the package
-sudo pkgutil --forget $VIMIUM_APP_ID
-# Delete package receipt
-ls /var/db/receipts/ | grep $VIMIUM_APP_ID | xargs -I{} sudo rm -rf /var/db/receipts/{}
+sudo pkgutil --forget com.vimium.VimiumNative
+# Delete package receipt if anything is left
+ls /var/db/receipts/ | grep com.vimium.VimiumNative | xargs -I{} sudo rm -rf /var/db/receipts/{}
 ```
 
 ### `pkgbuild` for distribution
@@ -71,13 +48,16 @@ Showed for transparency of the build step, no need to run it
 swift build -c release
 
 # Creating installable package
-pkgbuild --root .build/release --identifier $VIMIUM_APP_ID --version 1.0 --install-location $VIMIUM_INSTALL_LOCATION $VIMIUM_APP.pkg
+pkgbuild --root .build/release --identifier com.vimium.VimiumNative --version 1.0 --install-location /usr/local/bin/VimiumNative VimiumNative.pkg
 ```
 
 # Building from source
 
 ```sh
-# Prerequisite: Clone however you want and cd into the dir
+# Prerequisites: 
+# - Clone however you want and cd into the dir
+# - Ensure that dev utils are installed so swift is avialable and matches
+#   with Package.swift version (6.0 as of now)
 
 # Build in release mode
 swift build -c release
@@ -103,3 +83,6 @@ watchexec -r 'swift build && .build/debug/VimiumNative'
 
 - Multiple screen navigation, fzfind works for main screen only _(feel free to
   contribute if that's an issue)_
+- Chrome may fail to index the window elements, ensure that flag
+  `Native accessibility API support` in [accessibility](chrome://accessibility)
+  is enabled
