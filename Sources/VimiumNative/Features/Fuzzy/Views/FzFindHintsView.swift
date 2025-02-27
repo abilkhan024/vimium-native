@@ -23,6 +23,10 @@ struct FzFindHintsView: View {
       ZStack {
         ForEach(points.indices, id: \.self) { i in
           let text = state.texts[i]
+          let hintOptions = (
+            hintSize: AppOptions.shared.hintFontSize, padding: 4.0, shadowRadius: 6.0
+          )
+
           let searchTarget = self.state.fzfMode ? state.hints[i].getSearchTerm() : text
           let isMatch =
             self.state.fzfMode
@@ -31,14 +35,17 @@ struct FzFindHintsView: View {
           let fzfMatch = state.fzfSelectedIdx == i ? 1.0 : 0.5
           let opacity = isMatch ? state.fzfMode ? fzfMatch : nonFzfMatch : 0.001
           let zIndex = state.zIndexInverted ? Double(points.count) - Double(i) : Double(i)
-          Tooltip(position: points[i], backgroundColor: AppOptions.shared.colors.bg) {
+          Tooltip(
+            height: hintOptions.hintSize, position: points[i],
+            backgroundColor: AppOptions.shared.colors.bg
+          ) {
             Text(text.uppercased())
-              .font(.system(size: 14, weight: .bold))
+              .font(.system(size: hintOptions.hintSize, weight: .bold))
               .foregroundColor(AppOptions.shared.colors.fg)
-              .padding([.horizontal], 4)
+              .padding([.horizontal], hintOptions.padding)
           }
           .zIndex(zIndex)
-          .shadow(radius: 6.0)
+          .shadow(radius: hintOptions.shadowRadius)
           .opacity(opacity)
         }
       }.frame(width: geo.size.width, height: geo.size.height)
@@ -47,43 +54,46 @@ struct FzFindHintsView: View {
 }
 
 private struct Tooltip<Content: View>: View {
+  let height: CGFloat
   let content: Content
   let position: CGPoint
   let backgroundColor: Color
 
-  init(position: CGPoint, backgroundColor: Color, @ViewBuilder content: () -> Content) {
+  init(
+    height: CGFloat, position: CGPoint, backgroundColor: Color, @ViewBuilder content: () -> Content
+  ) {
+    self.height = height
     self.content = content()
     self.position = position
     self.backgroundColor = backgroundColor
   }
 
   var body: some View {
-    let triangle = (width: 8.0, height: 4.0)
-    let height = 14.0
     GeometryReader { geo in
       let isTop = geo.frame(in: .global).maxY - height * 2 < position.y
       let y =
         isTop
         ? (position.y - geo.frame(in: .global).minY - height)
         : (position.y - geo.frame(in: .global).minY + height / 2)
-      VStack {
+      VStack(alignment: .center, spacing: 0) {
         if isTop {
           content
             .background(backgroundColor)
             .cornerRadius(4)
-            .offset(x: 0, y: height / 2)
             .frame(width: nil, height: height)
+            .zIndex(2)
         }
         Triangle()
           .fill(backgroundColor)
           .rotationEffect(isTop ? .degrees(180) : .zero)
-          .frame(width: triangle.width, height: triangle.height)
-          .offset(x: 0, y: isTop ? 0 : height / 2)
+          .frame(width: height, height: AppOptions.shared.hintTriangleHeight)
+          .zIndex(1)
         if !isTop {
           content
             .background(backgroundColor)
             .cornerRadius(4)
             .frame(width: nil, height: height)
+            .zIndex(2)
         }
       }
       .position(

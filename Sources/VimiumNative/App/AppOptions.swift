@@ -7,6 +7,16 @@ final class AppOptions {
   static let shared = AppOptions()
 
   // EXAMPLE:
+  //   hint_font_size=20.0
+  // INFO: Font size of the hint label
+  var hintFontSize: CGFloat = 14.0
+
+  // EXAMPLE:
+  //   hint_triangle_height=8.0
+  // INFO: Height of th traingle indicating point that will be clicked
+  var hintTriangleHeight: CGFloat = 6.0
+
+  // EXAMPLE:
   //   scroll_size_vertical=20
   //   scroll_size_horizontal=80
   //   scroll_size_vertical_page=200
@@ -83,6 +93,14 @@ final class AppOptions {
   // INFO: When developing and want to check performance
   var debugPerf = false
 
+  private func parseCgFloat(value: String, field: String) -> CGFloat? {
+    guard let value = Float(value) else {
+      print("\(field) must be float")
+      return nil
+    }
+    return CGFloat(value)
+  }
+
   private func parseInt(value: String, field: String) -> Int? {
     guard let value = Int(value) else {
       print("\(field) must be int")
@@ -109,6 +127,14 @@ final class AppOptions {
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "hint_triangle_height":
+        if let val = parseCgFloat(value: value, field: "hint_triangle_height") {
+          self.hintTriangleHeight = val
+        }
+      case "hint_font_size":
+        if let val = parseCgFloat(value: value, field: "hint_font_size") {
+          self.hintFontSize = val
+        }
       case "cursor_step":
         if let val = parseInt(value: value, field: "cursor_step") {
           self.cursorStep = val
