@@ -1,3 +1,14 @@
+# Overview
+
+`VimiumNative` is a free and open-source cli tool that allows you to use your
+mac without mouse in your day to day. It's some combination of other tools like
+`HomeRow`, `Shortcat`, `Mouseless`, `Warpd`. To some degree you may use this app
+as an alternative to any of them. If you find that some part lacks in
+functionality or performance it's higly encouraged to contribute to the project
+:)
+
+P.S. More about contribution to the project could be found [here](#contriubtion)
+
 # Demo (TODO)
 
 ## Hint
@@ -149,6 +160,19 @@ swift build
 # [watchexec](https://github.com/watchexec/watchexec)
 watchexec -r 'swift build && .build/debug/VimiumNative'
 ```
+
+# Contriubtion
+
+There is no particular strong code style or principles in this project, so do
+whatever you see fit, minor adjustments can be done at any moment later.
+
+However single key thing that needs to be followed:
+
+Ensure that app is always runnable simply by running `swift build` without
+relying on IDE/Xcode features
+
+Preferred: format your code using
+[swift-format](https://github.com/swiftlang/swift-format)
 
 # Known limitations
 
