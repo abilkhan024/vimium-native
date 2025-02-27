@@ -7,6 +7,23 @@ final class AppOptions {
   static let shared = AppOptions()
 
   // EXAMPLE:
+  //   # Color by default
+  //   mouse_color_normal=#ff0000
+  //   # Color when dragging
+  //   mouse_color_visual=#000000
+  //   # Color of the outiline when in mouse mode
+  //   mouse_outline_color=#ff0000
+  //   # Hides Outline when set to 0
+  //   mouse_outline_width=0
+  //   # Virtual circle cursor size
+  //   mouse_size=10.0
+  // INFO: Mouse params when entering grid mode
+  var mouse = (
+    colorNormal: Color.red, colorVisual: Color.blue, outlineColor: Color.blue,
+    outlineWidth: CGFloat(8.0), size: CGFloat(10.0)
+  )
+
+  // EXAMPLE:
   //   hint_font_size=20.0
   // INFO: Font size of the hint label
   var hintFontSize: CGFloat = 14.0
@@ -93,6 +110,167 @@ final class AppOptions {
   // INFO: When developing and want to check performance
   var debugPerf = false
 
+  // TODO: Custom key mappings scope
+  struct KeyMapping {
+    let key: Int64
+    let flags: [CGEventFlags]
+
+    init(key: Int64, flags: [CGEventFlags] = []) {
+      self.key = key
+      self.flags = flags
+    }
+  }
+
+  var keyMappings = (
+    showHints: KeyMapping(
+      key: Keys.dot.rawValue,
+      flags: [.maskCommand, .maskShift]
+    ),
+    showGrid: KeyMapping(
+      key: Keys.comma.rawValue,
+      flags: [.maskCommand, .maskShift]
+    ),
+    startScroll: KeyMapping(
+      key: Keys.j.rawValue,
+      flags: [.maskCommand, .maskShift]
+    ),
+
+    close: KeyMapping(key: Keys.esc.rawValue),  // Validate not a hint char
+    enterSearchMode: KeyMapping(key: Keys.slash.rawValue),  // Validate not a hint char
+    nextSearchOccurence: KeyMapping(key: Keys.tab.rawValue),  // Validate not a char
+    prevSearchOccurence: KeyMapping(key: Keys.tab.rawValue, flags: [.maskShift]),  // Validate not a char
+    dropLastSearchChar: KeyMapping(key: Keys.backspace.rawValue),  // Validate not a char
+
+    mouseLeft: KeyMapping(key: Keys.h.rawValue),
+    mouseDown: KeyMapping(key: Keys.j.rawValue),
+    mouseUp: KeyMapping(key: Keys.k.rawValue),
+    mouseRight: KeyMapping(key: Keys.l.rawValue),
+
+    scrollLeft: KeyMapping(key: Keys.h.rawValue, flags: [.maskShift]),
+    scrollDown: KeyMapping(key: Keys.j.rawValue, flags: [.maskShift]),
+    scrollUp: KeyMapping(key: Keys.k.rawValue, flags: [.maskShift]),
+    scrollRight: KeyMapping(key: Keys.l.rawValue, flags: [.maskShift]),
+
+    scrollPageDown: KeyMapping(key: Keys.d.rawValue),
+    scrollPageUp: KeyMapping(key: Keys.u.rawValue)
+  )
+
+  public func keyMatchesEvent(keyMapping: KeyMapping, event: CGEvent) -> Bool {
+    let matchedFlags = keyMapping.flags.filter { flag in event.flags.contains(flag) }
+    if matchedFlags.count != keyMapping.flags.count {
+      return false
+    }
+
+    return event.getIntegerValueField(.keyboardEventKeycode) == keyMapping.key
+  }
+
+  private let stringToKey: [String: Keys] = [
+    "a": .a,
+    "s": .s,
+    "d": .d,
+    "f": .f,
+    "g": .g,
+    "h": .h,
+    "j": .j,
+    "k": .k,
+    "l": .l,
+    ";": .semicolon,
+    "'": .quote,
+    "<CR>": .enter,
+    "<S>": .shift,
+    "z": .z,
+    "x": .x,
+    "c": .c,
+    "v": .v,
+    "b": .b,
+    "n": .n,
+    "m": .m,
+    ",": .comma,
+    ".": .dot,
+    "/": .slash,
+    "<S-r>": .rightShift,
+    "<C>": .control,
+    "<M>": .option,  // <M> is often used for Alt/Option
+    "<D>": .command,  // <D> is commonly used for Command in Vim mappings
+    "<Space>": .space,
+    "<Caps>": .caps,
+    "<Tab>": .tab,
+    "<BS>": .backspace,
+    "<Esc>": .esc,
+
+    // Top row (QWERTY)
+    "q": .q,
+    "w": .w,
+    "e": .e,
+    "r": .r,
+    "t": .t,
+    "y": .y,
+    "u": .u,
+    "i": .i,
+    "o": .o,
+    "p": .p,
+
+    "1": .one,
+    "2": .two,
+    "3": .three,
+    "4": .four,
+    "5": .five,
+    "6": .six,
+    "7": .seven,
+    "8": .eight,
+    "9": .nine,
+    "0": .zero,
+    "-": .minus,
+    "=": .equals,
+
+    "[": .leftBracket,
+    "]": .rightBracket,
+    "\\": .backslash,
+    "`": .backTick,
+
+    "<Left>": .left,
+    "<Right>": .right,
+    "<Down>": .down,
+    "<Up>": .up,
+
+    "<Fn>": .fn,
+  ]
+
+  private func parseKeyMapping(from: String, field: String) -> KeyMapping? {
+    var value = from
+    var keyStr = ""
+    while stringToKey[keyStr] == nil {
+      if let char = value.popLast() {
+        keyStr.insert(char, at: keyStr.startIndex)
+      } else {
+        print("Not a valid key mapping for '\(field)'")
+      }
+    }
+    guard let key = stringToKey[keyStr] else {
+      print("WARNING: Impossible case executed")
+      return nil
+    }
+    var flagStr = ""
+    var flags: [CGEventFlags] = []
+    while !value.isEmpty {
+      guard let flag = stringToKey[flagStr] else {
+        flagStr.insert(value.popLast()!, at: flagStr.startIndex)
+        continue
+      }
+      switch flag {
+      case Keys.shift:
+        flags.append(.maskShift)
+      default:
+        print("Invalid flag was passed \(field)")
+        return nil
+      }
+      flagStr.removeAll()
+    }
+
+    return KeyMapping(key: key.rawValue, flags: flags)
+  }
+  // TODO: Custom key mappings scope
+
   private func parseCgFloat(value: String, field: String) -> CGFloat? {
     guard let value = Float(value) else {
       print("\(field) must be float")
@@ -127,6 +305,26 @@ final class AppOptions {
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "mouse_outline_width":
+        if let val = parseCgFloat(value: value, field: "mouse_outline_width") {
+          self.mouse.outlineWidth = val
+        }
+      case "mouse_outline_color":
+        if let val = parseColor(from: value, field: "mouse_outline_color") {
+          self.mouse.outlineColor = val
+        }
+      case "mouse_size":
+        if let val = parseCgFloat(value: value, field: "mouse_size") {
+          self.mouse.size = val
+        }
+      case "mouse_color_normal":
+        if let val = parseColor(from: value, field: "mouse_color_normal") {
+          self.mouse.colorNormal = val
+        }
+      case "mouse_color_visual":
+        if let val = parseColor(from: value, field: "mouse_color_visual") {
+          self.mouse.colorVisual = val
+        }
       case "hint_triangle_height":
         if let val = parseCgFloat(value: value, field: "hint_triangle_height") {
           self.hintTriangleHeight = val

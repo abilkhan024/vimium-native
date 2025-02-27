@@ -23,7 +23,7 @@ class GridListener: Listener {
 
   init() {
     hintsWindow.render(AnyView(GridHintsView())).call()
-    mouseWindow.render(AnyView(GridMouseView(length: 10))).call()
+    mouseWindow.render(AnyView(GridMouseView())).call()
   }
 
   func match(_ event: CGEvent) -> Bool {

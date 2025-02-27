@@ -59,6 +59,19 @@ Avialbable options are documented in following file
 Example config:
 
 ```sh
+# Mouse params when entering grid mode
+
+# Color by default
+mouse_color_normal=#ff0000
+# Color when dragging
+mouse_color_visual=#00ffff
+# Color of the outiline when in mouse mode
+mouse_outline_color=#00ffff
+# Hides Outline when set to 0
+mouse_outline_width=8.0
+# Virtual circle cursor size
+mouse_size=10.0
+
 # Scroll scale vertical when using jk, horizontal for hl, verticalPage: du
 scroll_size_vertical=5
 scroll_size_horizontal=40

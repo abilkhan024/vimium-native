@@ -4,29 +4,50 @@ import SwiftUI
 
 // REF: https://eastmanreference.com/complete-list-of-applescript-key-codes
 enum Keys: Int64 {
-  case dot = 47
-  case comma = 43
-  case esc = 53
-  case enter = 36
-  case backspace = 51
-  case left = 123
-  case right = 124
-  case down = 125
-  case up = 126
-  case quote = 39
-  case slash = 44
-  case semicolon = 41
-  case tab = 48
-
+  case a = 0
+  case s = 1
+  case d = 2
+  case f = 3
+  case g = 5
   case h = 4
   case j = 38
   case k = 40
   case l = 37
+  case semicolon = 41
+  case quote = 39
+  case enter = 36
+  case shift = 56
+  case z = 6
+  case x = 7
+  case c = 8
   case v = 9
+  case b = 11
+  case n = 45
   case m = 46
-  case d = 2
+  case comma = 43
+  case dot = 47
+  case slash = 44
+  case rightShift = 60
+  case control = 59
+  case option = 58
+  case command = 55
+  case space = 49
+  case caps = 57
+  case tab = 48
+  case backspace = 51
+  case esc = 53
+
+  // Top row (QWERTY)
+  case q = 12
+  case w = 13
+  case e = 14
+  case r = 15
+  case t = 17
+  case y = 16
   case u = 32
-  case g = 5
+  case i = 34
+  case o = 31
+  case p = 35
 
   case one = 18
   case two = 19
@@ -38,6 +59,20 @@ enum Keys: Int64 {
   case eight = 28
   case nine = 25
   case zero = 29
+  case minus = 27
+  case equals = 24
+
+  case leftBracket = 33
+  case rightBracket = 30
+  case backslash = 42
+  case backTick = 50
+
+  case left = 123
+  case right = 124
+  case down = 125
+  case up = 126
+
+  case fn = 63
 }
 
 @MainActor
