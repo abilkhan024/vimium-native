@@ -11,9 +11,11 @@ struct GridMouseView: View {
   }
 
   var body: some View {
-    Ellipse()
-      .fill(state.dragging ? Color.blue : Color.red)
-      .frame(width: self.length, height: self.length)
-      .position(self.state.position)
+    ZStack {
+      Ellipse()
+        .fill(state.dragging ? Color.blue : Color.red)
+        .frame(width: self.length, height: self.length)
+        .position(self.state.position)
+    }.overlay(RoundedRectangle(cornerRadius: 10).stroke(.blue, lineWidth: 8))
   }
 }

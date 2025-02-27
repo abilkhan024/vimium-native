@@ -6,22 +6,52 @@ import SwiftUI
 final class AppOptions {
   static let shared = AppOptions()
 
+  // EXAMPLE:
+  //   scroll_size_vertical=20
+  //   scroll_size_horizontal=80
+  //   scroll_size_vertical_page=200
+  // INFO: Scroll scale vertical when using jk, horizontal for hl, verticalPage: du
+  var scrollSize = (vertical: 5, horizontal: 40, verticalPage: 100)
+
+  // EXAMPLE:
+  //   cursor_step=20
+  // INFO: Cursor move size
+  var cursorStep = 5
+
+  // EXAMPLE:
+  //   traverse_hidden=true
   // INFO: Traverse the children of the node if the node has dimensions of <=1
   // Generally advised against, because slows down perf
   var traverseHidden = false
 
+  // EXAMPLE:
+  //   system_menu_poll=0
   // INFO: Interval for system menu poll in seconds 0 doesn't poll system menu
   // therefore won't show it, min value that won't degrade performance is 10
   var systemMenuPoll = 10
 
+  // EXAMPLE:
+  //   color_bg=#ff0000
+  //   color_fg=#ff0000
   // INFO: Colors used for hints
   var colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
+
+  // EXAMPLE:
+  //   hint_chars=jklhgasdfweruio
   // INFO: Chars that will be used when generating hints
   var hintChars = "jklhgasdfweruio"
+
+  // EXAMPLE:
+  //   hint_text=false
   // INFO: Some websites may use text as buttons, you can enable it to hint the
   // text nodes, but it may slowdown rendering, sometimes significantly
   // P.s HomeRow doesn't do it, that's why it's false by default
   var hintText = false
+
+  // EXAMPLE:
+  //   hint_selection=action
+  //   # Possible values action|role
+  // ----------------------------------------------------------------
   // INFO: How to determine if the element is hintable, .role replicates
   // homerow behaviour, and generally faster, but ignores some elements
   // ----------------------------------------------------------------
@@ -32,15 +62,24 @@ final class AppOptions {
     case role
     case action
   }
+
+  // EXAMPLE:
+  //   grid_rows=42
+  //   grid_cols=48
+  //   grid_font_size=12
   // INFO: Rows and cols dimensions when using, grid mode, change is a
   // trade-off between precision and performance
-  var grid = (rows: 36, cols: 36, fontSize: 14 as CGFloat)
+  var grid = (rows: 36, cols: 36, fontSize: CGFloat(14.0))
 
+  // EXAMPLE:
+  //   jiggle_when_dragging=true
   // INFO: Sometimes macos refuses to register drag when you immidetly jump
   // between labels, you can enable this flag that will jiggle once you start
   // dragging
   var jiggleWhenDragging = false
 
+  // EXAMPLE:
+  //   debug_perf=true
   // INFO: When developing and want to check performance
   var debugPerf = false
 
@@ -70,6 +109,22 @@ final class AppOptions {
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "cursor_step":
+        if let val = parseInt(value: value, field: "cursor_step") {
+          self.cursorStep = val
+        }
+      case "scroll_size_vertical":
+        if let val = parseInt(value: value, field: "scroll_size_vertical") {
+          self.scrollSize.vertical = val
+        }
+      case "scroll_size_vertical_page":
+        if let val = parseInt(value: value, field: "scroll_size_vertical_page") {
+          self.scrollSize.verticalPage = val
+        }
+      case "scroll_size_horizontal":
+        if let val = parseInt(value: value, field: "scroll_size_horizontal") {
+          self.scrollSize.horizontal = val
+        }
       case "jiggle_when_dragging":
         if let val = parseBool(value: value, field: "jiggle_when_dragging") {
           self.jiggleWhenDragging = val
@@ -165,24 +220,33 @@ final class AppOptions {
     return Color(NSColor(calibratedRed: red, green: green, blue: blue, alpha: alpha))
   }
 
-  private init() {
-    let filename = "vimium"
-    let fileManager = FileManager.default
-    let homeDirectoryURL = fileManager.homeDirectoryForCurrentUser
-    let configDirectoryURL = homeDirectoryURL.appendingPathComponent(".config", isDirectory: true)
-    let filePath = configDirectoryURL.appendingPathComponent(filename).path
-
-    if !fileManager.fileExists(atPath: filePath) {
-      print("Config file not found at '\(filePath)', using defaults")
+  private func readConfigFile(path: String) {
+    let fs = FileManager.default
+    if !fs.fileExists(atPath: path) {
+      print("Config file not found at '\(path)', using defaults")
       return
     }
 
     do {
-      let contents = try String(contentsOfFile: filePath, encoding: .utf8)
+      let contents = try String(contentsOfFile: path, encoding: .utf8)
       proccessOptions(contents)
+      print("Config parsed successfully")
     } catch {
-      print("Error reading file: \(error)")
-      return
+      print("Error reading config file: \(error)")
+    }
+  }
+
+  private init() {
+    if let configPath = ProcessInfo.processInfo.environment["VIMIUM_CONFIG_PATH"] {
+      print("VIMIUM_CONFIG_PATH is set reading from custom path '\(configPath)'")
+      readConfigFile(path: configPath)
+    } else {
+      let filename = "vimium"
+      let fileManager = FileManager.default
+      let homeDirectoryURL = fileManager.homeDirectoryForCurrentUser
+      let configDirectoryURL = homeDirectoryURL.appendingPathComponent(".config", isDirectory: true)
+      let filePath = configDirectoryURL.appendingPathComponent(filename).path
+      readConfigFile(path: filePath)
     }
   }
 }

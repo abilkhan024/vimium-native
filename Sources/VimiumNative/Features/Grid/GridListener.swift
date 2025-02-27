@@ -70,7 +70,6 @@ class GridListener: Listener {
   private func onTyping(_ event: CGEvent) {
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
     let digits = Int(self.digits) ?? 1
-    let scale = digits * 5
 
     if !hintSelected {
       switch keyCode {
@@ -106,6 +105,7 @@ class GridListener: Listener {
     }
 
     let isShifting = event.flags.contains(.maskShift)
+    let cusrorOffset = digits * AppOptions.shared.cursorStep
     switch keyCode {
     case Keys.one.rawValue, Keys.two.rawValue, Keys.three.rawValue, Keys.four.rawValue,
       Keys.five.rawValue, Keys.six.rawValue, Keys.seven.rawValue, Keys.eight.rawValue,
@@ -114,13 +114,20 @@ class GridListener: Listener {
       self.digits.append(char)
     case Keys.v.rawValue:
       mouseState.dragging = !mouseState.dragging
+      if !mouseState.dragging {
+        if let event = CGEvent(source: nil) {
+          EventUtils.leftMouseUp(event.location)
+        }
+        return
+      }
       EventUtils.leftMouseDown(self.mouseState.position)
 
       if AppOptions.shared.jiggleWhenDragging {
+        let jiggleStep = 5
         DispatchQueue.main.asyncAfter(deadline: .now()) {
-          self.moveRelative(scroll: false, offsetX: 1, offsetY: 0, scale: 5)
+          self.moveRelative(offsetX: jiggleStep)
           DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-            self.moveRelative(scroll: false, offsetX: -1, offsetY: 0, scale: 5)
+            self.moveRelative(offsetX: -jiggleStep)
           }
         }
       }
@@ -129,27 +136,39 @@ class GridListener: Listener {
     case Keys.esc.rawValue:
       return onClose()
     case Keys.h.rawValue:
-      return moveRelative(
-        scroll: isShifting, offsetX: -1, offsetY: 0, scale: isShifting ? scale * 10 : scale)
+      if isShifting {
+        return scrollRelative(offsetX: -AppOptions.shared.scrollSize.horizontal * digits)
+      }
+      return moveRelative(offsetX: -cusrorOffset)
     case Keys.l.rawValue:
-      return moveRelative(
-        scroll: isShifting, offsetX: 1, offsetY: 0, scale: isShifting ? scale * 10 : scale)
+      if isShifting {
+        return scrollRelative(offsetX: AppOptions.shared.scrollSize.horizontal * digits)
+      }
+      return moveRelative(offsetX: cusrorOffset)
     case Keys.j.rawValue:
-      return moveRelative(scroll: isShifting, offsetX: 0, offsetY: 1, scale: scale)
+      if isShifting {
+        return scrollRelative(offsetY: AppOptions.shared.scrollSize.vertical * digits)
+      }
+      return moveRelative(offsetY: cusrorOffset)
     case Keys.k.rawValue:
-      return moveRelative(scroll: isShifting, offsetX: 0, offsetY: -1, scale: scale)
+      if isShifting {
+        return scrollRelative(offsetY: -AppOptions.shared.scrollSize.vertical * digits)
+      }
+      return moveRelative(offsetY: -cusrorOffset)
     case Keys.d.rawValue:
-      return moveRelative(scroll: true, offsetX: 0, offsetY: 1, scale: scale * 16)
+      return scrollRelative(offsetY: AppOptions.shared.scrollSize.verticalPage * digits)
     case Keys.u.rawValue:
-      return moveRelative(scroll: true, offsetX: 0, offsetY: -1, scale: scale * 16)
+      return scrollRelative(offsetY: -AppOptions.shared.scrollSize.verticalPage * digits)
     case Keys.g.rawValue:
-      return moveRelative(
-        scroll: true, offsetX: 0, offsetY: isShifting ? 1 : -1, scale: scale * 9999)
+      let direction = isShifting ? 1 : -1
+      let maxScroll = 99999
+      return scrollRelative(offsetY: direction * maxScroll)
     case Keys.comma.rawValue, Keys.m.rawValue:
       if let event = CGEvent(source: nil) {
         let current = event.location
         EventUtils.leftClick(current, event.flags)
       }
+      mouseState.dragging = false
     default:
       return
     }
@@ -178,20 +197,21 @@ class GridListener: Listener {
     }
   }
 
-  private func moveRelative(scroll: Bool, offsetX: Int, offsetY: Int, scale: Int) {
-    if scroll {
-      let deltaY = Int32(offsetY * -1 * scale)
-      let deltaX = Int32(offsetX * -1 * scale)
-      EventUtils.scroll(deltaY: deltaY, deltaX: deltaX)
+  private func scrollRelative(offsetX: Int = 0, offsetY: Int = 0) {
+    let deltaY = Int32(offsetY * -1)
+    let deltaX = Int32(offsetX * -1)
+    EventUtils.scroll(deltaY: deltaY, deltaX: deltaX)
+    digits = ""
+  }
+
+  private func moveRelative(offsetX: Int = 0, offsetY: Int = 0) {
+    mouseState.position.x += CGFloat(offsetX)
+    mouseState.position.y += CGFloat(offsetY)
+    mouseState.position = EventUtils.normalizePoint(mouseState.position)
+    if mouseState.dragging {
+      EventUtils.move(mouseState.position, type: .leftMouseDragged)
     } else {
-      mouseState.position.x += CGFloat(offsetX * scale)
-      mouseState.position.y += CGFloat(offsetY * scale)
-      mouseState.position = EventUtils.normalizePoint(mouseState.position)
-      if mouseState.dragging {
-        EventUtils.move(mouseState.position, type: .leftMouseDragged)
-      } else {
-        EventUtils.move(mouseState.position)
-      }
+      EventUtils.move(mouseState.position)
     }
     digits = ""
   }

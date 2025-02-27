@@ -1,13 +1,14 @@
-# v0.1 checklist
+# Demo (TODO)
 
-1. Customization via .config file
-   - Keys for shortcuts
-2. Better scroll experience
-   - Smoother, and option for scroll size
+## Hint
 
----
+## Hint with search
 
-# Usage
+## Grid
+
+## Scroll
+
+# Getting started
 
 ## Install
 
@@ -30,7 +31,6 @@ If you didn't like the application you can easily uninstall it by following:
 _P.S. constructive criticism is appreciated in the `Issues` section_
 
 ```sh
-# Verify that env's are set correctly
 # Remove files
 sudo rm -rf /usr/local/bin/VimiumNative
 # Forget the package
@@ -49,6 +49,64 @@ swift build -c release
 
 # Creating installable package
 pkgbuild --root .build/release --identifier com.vimium.VimiumNative --version 1.0 --install-location /usr/local/bin/VimiumNative VimiumNative.pkg
+```
+
+# Options
+
+Avialbable options are documented in following file
+[AppOptions.swift](https://github.com/abilkhan024/vimium-native/blob/main/Sources/VimiumNative/App/AppOptions.swift)
+
+Example config:
+
+```sh
+# Scroll scale vertical when using jk, horizontal for hl, verticalPage: du
+scroll_size_vertical=5
+scroll_size_horizontal=40
+scroll_size_vertical_page=100
+
+# Cursor move size
+cursor_step=5
+
+# Traverse the children of the node if the node has dimensions of <=1
+# Generally advised against, because slows down performance
+traverse_hidden=false
+
+# Interval for system menu poll in seconds, 0 doesn't poll system menu
+# therefore won't show it. Min value that won't degrade performance is 10
+system_menu_poll=10
+
+# Colors used for hints
+color_bg=#e6d278
+color_fg=#000000
+
+# Chars that will be used when generating hints
+hint_chars=jklhgasdfweruio
+
+# Some websites may use text as buttons. You can enable this to hint text nodes,
+# but it may slow down rendering, sometimes significantly.
+# P.s HomeRow doesn't do it, that's why it's false by default
+hint_text=false
+
+# How to determine if the element is hintable.
+# Possible values: action | role
+# ----------------------------------------------------------------
+# role: Replicates HomeRow behavior, generally faster but ignores some elements
+# action: Shows if element provides non-ignored action
+# ----------------------------------------------------------------
+hint_selection=role
+
+# Rows and cols dimensions when using grid mode.
+# Change is a trade-off between precision and performance
+grid_rows=36
+grid_cols=36
+grid_font_size=14.0
+
+# Sometimes macOS refuses to register drag when you immediately jump
+# between labels. You can enable this flag to jiggle once you start dragging
+jiggle_when_dragging=false
+
+# When developing and want to check performance
+debug_perf=false
 ```
 
 # Building from source
@@ -83,6 +141,4 @@ watchexec -r 'swift build && .build/debug/VimiumNative'
 
 - Multiple screen navigation, fzfind works for main screen only _(feel free to
   contribute if that's an issue)_
-- Chrome may fail to index the window elements, ensure that flag
-  `Native accessibility API support` in [accessibility](chrome://accessibility)
-  is enabled
+- Smooth scrolling _(feel free to contribute if that's an issue)_
