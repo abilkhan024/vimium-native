@@ -11,7 +11,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     if !AXIsProcessTrusted() {
-      return print("AXIsProcessTrusted is false, allow a11y to the runner")
+      print(
+        """
+
+          AXIsProcessTrusted is false! Can't work with that.
+
+          You must allow a11y permission to the 'runner' aka your terminal client e.g. iTerm2. To do that:
+
+            1. Go to Settings -> Privacy & Security -> Accessibility
+            2. Press "+"
+            3. Add your terminal app
+            4. Restart the vimium
+
+        """)
+
+      exit(1)
     }
     AppEventManager.listen()
     print("Listening to trigger key")
