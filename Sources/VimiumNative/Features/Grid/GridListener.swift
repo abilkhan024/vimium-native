@@ -13,6 +13,8 @@ class GridListener: Listener {
   private let mouseWindow = GridWindowManager.get(.mouse)
   private let cursourLen: CGFloat = 10
   private var hintSelected = false
+  private var isReopened = false
+  private let mappings = AppOptions.shared.keyMappings
   // NOTE: May be adding projection where the next point will land for each
   // direction?
   private var digits = ""
@@ -22,24 +24,19 @@ class GridListener: Listener {
     mouseWindow.render(AnyView(GridMouseView())).call()
   }
 
-  func match(_ event: CGEvent) -> Bool {
-    let flags = event.flags
-    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-
-    return flags.contains(.maskCommand) && flags.contains(.maskShift)
-      && (keyCode == Keys.comma.rawValue || keyCode == Keys.j.rawValue)
+  func matches(_ event: CGEvent) -> Bool {
+    return mappings.showGrid.matches(event: event) || mappings.startScroll.matches(event: event)
   }
 
   func callback(_ event: CGEvent) {
-    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-    switch keyCode {
-    case Keys.j.rawValue:
+    switch event {
+    case _ where mappings.startScroll.matches(event: event):
       guard let screen = NSScreen.main else { return }
       clearHints()
       hintSelected = true
       mouseWindow.front().call()
       moveTo(x: screen.frame.maxX / 2, y: screen.frame.maxY / 2)
-    case Keys.comma.rawValue:
+    case _ where mappings.showGrid.matches(event: event):
       let frame = hintsWindow.native().frame
       hintsState.rows = AppOptions.shared.grid.rows
       hintsState.cols = AppOptions.shared.grid.cols
@@ -64,56 +61,98 @@ class GridListener: Listener {
   }
 
   private func onTyping(_ event: CGEvent) {
-    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
     let digits = Int(self.digits) ?? 1
+    let isClose = mappings.close.matches(event: event)
+    if isClose && hintSelected || isClose && !isReopened {
+      return onClose()
+    } else if isClose && isReopened {
+      clearHints()
+      hintSelected = true
+    }
 
     if !hintSelected {
-      switch keyCode {
-      case Keys.esc.rawValue:
+      guard let char = EventUtils.getEventChar(from: event) else { return }
+      hintsState.search.append(char)
+      hintsState.matchingCount =
+        hintsState.sequence.filter { el in el.starts(with: hintsState.search) }.count
+      switch hintsState.matchingCount {
+      case 0:
         return onClose()
+      case 1:
+        guard
+          let index = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
+            .firstIndex(where: { e in e.starts(with: hintsState.search) })
+        else { return clearHints() }
+
+        let col = Double(index).truncatingRemainder(dividingBy: Double(hintsState.cols))
+        let row = trunc(Double(index) / Double(hintsState.cols))
+        let x: CGFloat = hintsState.hintWidth * col + (hintsState.hintWidth / 2)
+        let y: CGFloat = hintsState.hintHeight * row + (hintsState.hintHeight / 2)
+
+        clearHints()
+        hintSelected = true
+        mouseWindow.front().call()
+        return moveTo(x: x, y: y)
       default:
-        guard let char = EventUtils.getEventChar(from: event) else { return }
-        hintsState.search.append(char)
-        hintsState.matchingCount =
-          hintsState.sequence.filter { el in el.starts(with: hintsState.search) }.count
-        switch hintsState.matchingCount {
-        case 0:
-          return onClose()
-        case 1:
-          guard
-            let index = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
-              .firstIndex(where: { e in e.starts(with: hintsState.search) })
-          else { return clearHints() }
-
-          let col = Double(index).truncatingRemainder(dividingBy: Double(hintsState.cols))
-          let row = trunc(Double(index) / Double(hintsState.cols))
-          let x: CGFloat = hintsState.hintWidth * col + (hintsState.hintWidth / 2)
-          let y: CGFloat = hintsState.hintHeight * row + (hintsState.hintHeight / 2)
-
-          clearHints()
-          hintSelected = true
-          mouseWindow.front().call()
-          return moveTo(x: x, y: y)
-        default:
-          return
-        }
+        return
       }
     }
 
-    let isShifting = event.flags.contains(.maskShift)
     let cusrorOffset = digits * AppOptions.shared.cursorStep
+    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+    let scrollSize = AppOptions.shared.scrollSize
+    let maxScroll = 99999
+
     switch keyCode {
-    case Keys.one.rawValue, Keys.two.rawValue, Keys.three.rawValue, Keys.four.rawValue,
-      Keys.five.rawValue, Keys.six.rawValue, Keys.seven.rawValue, Keys.eight.rawValue,
-      Keys.nine.rawValue, Keys.zero.rawValue:
+    case Key.one.rawValue, Key.two.rawValue, Key.three.rawValue, Key.four.rawValue,
+      Key.five.rawValue, Key.six.rawValue, Key.seven.rawValue, Key.eight.rawValue,
+      Key.nine.rawValue, Key.zero.rawValue:
       guard let char = EventUtils.getEventChar(from: event) else { return }
       self.digits.append(char)
-    case Keys.v.rawValue:
+    case _ where mappings.reopenGridView.matches(event: event):
+      hintsWindow.front().hideCursor().call()
+      hintSelected = false
+      isReopened = true
+    case _ where mappings.rightClick.matches(event: event):
+      EventUtils.rightClick(self.mouseState.position, event.flags)
+    case _ where mappings.leftClick.matches(event: event):
+      EventUtils.leftClick(self.mouseState.position, event.flags)
+      mouseState.dragging = false
+    case _ where mappings.mouseLeft.matches(event: event):
+      moveRelative(offsetX: -cusrorOffset)
+    case _ where mappings.scrollLeft.matches(event: event):
+      scrollRelative(offsetX: -scrollSize.horizontal * digits)
+    case _ where mappings.mouseRight.matches(event: event):
+      moveRelative(offsetX: cusrorOffset)
+    case _ where mappings.scrollRight.matches(event: event):
+      scrollRelative(offsetX: scrollSize.horizontal * digits)
+    case _ where mappings.mouseDown.matches(event: event):
+      moveRelative(offsetY: cusrorOffset)
+    case _ where mappings.scrollDown.matches(event: event):
+      scrollRelative(offsetY: scrollSize.vertical * digits)
+    case _ where mappings.mouseUp.matches(event: event):
+      moveRelative(offsetY: -cusrorOffset)
+    case _ where mappings.scrollUp.matches(event: event):
+      scrollRelative(offsetY: -scrollSize.vertical * digits)
+    case _ where mappings.scrollPageDown.matches(event: event):
+      scrollRelative(offsetY: scrollSize.verticalPage * digits)
+    case _ where mappings.scrollPageUp.matches(event: event):
+      scrollRelative(offsetY: -scrollSize.verticalPage * digits)
+    case _ where mappings.scrollPageDown.matches(event: event):
+      scrollRelative(offsetY: scrollSize.verticalPage * digits)
+    case _ where mappings.scrollPageUp.matches(event: event):
+      scrollRelative(offsetY: -scrollSize.verticalPage * digits)
+    case _ where mappings.scrollFullDown.matches(event: event):
+      scrollRelative(offsetY: maxScroll)
+    case _ where mappings.scrollFullUp.matches(event: event):
+      scrollRelative(offsetY: -maxScroll)
+    case _ where mappings.enterVisual.matches(event: event):
       mouseState.dragging = !mouseState.dragging
-      if !mouseState.dragging {
-        if let event = CGEvent(source: nil) {
-          EventUtils.leftMouseUp(event.location)
-        }
+      guard mouseState.dragging else {
+        // if let event = CGEvent(source: nil) {
+        //   EventUtils.leftMouseUp(event.location)
+        // }
+        EventUtils.leftMouseUp(self.mouseState.position)
         return
       }
       EventUtils.leftMouseDown(self.mouseState.position)
@@ -127,51 +166,15 @@ class GridListener: Listener {
           }
         }
       }
-    case Keys.dot.rawValue:
-      return EventUtils.rightClick(self.mouseState.position)
-    case Keys.esc.rawValue:
-      return onClose()
-    case Keys.h.rawValue:
-      if isShifting {
-        return scrollRelative(offsetX: -AppOptions.shared.scrollSize.horizontal * digits)
-      }
-      return moveRelative(offsetX: -cusrorOffset)
-    case Keys.l.rawValue:
-      if isShifting {
-        return scrollRelative(offsetX: AppOptions.shared.scrollSize.horizontal * digits)
-      }
-      return moveRelative(offsetX: cusrorOffset)
-    case Keys.j.rawValue:
-      if isShifting {
-        return scrollRelative(offsetY: AppOptions.shared.scrollSize.vertical * digits)
-      }
-      return moveRelative(offsetY: cusrorOffset)
-    case Keys.k.rawValue:
-      if isShifting {
-        return scrollRelative(offsetY: -AppOptions.shared.scrollSize.vertical * digits)
-      }
-      return moveRelative(offsetY: -cusrorOffset)
-    case Keys.d.rawValue:
-      return scrollRelative(offsetY: AppOptions.shared.scrollSize.verticalPage * digits)
-    case Keys.u.rawValue:
-      return scrollRelative(offsetY: -AppOptions.shared.scrollSize.verticalPage * digits)
-    case Keys.g.rawValue:
-      let direction = isShifting ? 1 : -1
-      let maxScroll = 99999
-      return scrollRelative(offsetY: direction * maxScroll)
-    case Keys.comma.rawValue, Keys.m.rawValue:
-      if let event = CGEvent(source: nil) {
-        let current = event.location
-        EventUtils.leftClick(current, event.flags)
-      }
-      mouseState.dragging = false
     default:
       return
     }
+
   }
 
   private func onClose() {
     hintSelected = false
+    isReopened = false
     mouseState.dragging = false
     clearHints()
     mouseWindow.hide().call()

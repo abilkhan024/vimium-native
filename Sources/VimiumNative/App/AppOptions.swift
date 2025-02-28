@@ -110,166 +110,47 @@ final class AppOptions {
   // INFO: When developing and want to check performance
   var debugPerf = false
 
-  // TODO: Custom key mappings scope
-  struct KeyMapping {
-    let key: Int64
-    let flags: [CGEventFlags]
-
-    init(key: Int64, flags: [CGEventFlags] = []) {
-      self.key = key
-      self.flags = flags
-    }
-  }
-
   var keyMappings = (
-    showHints: KeyMapping(
-      key: Keys.dot.rawValue,
-      flags: [.maskCommand, .maskShift]
-    ),
-    showGrid: KeyMapping(
-      key: Keys.comma.rawValue,
-      flags: [.maskCommand, .maskShift]
-    ),
-    startScroll: KeyMapping(
-      key: Keys.j.rawValue,
-      flags: [.maskCommand, .maskShift]
-    ),
+    showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
+    showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),
+    startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),
+    close: KeyMapping(key: .esc),  // Validate not a hint char
 
-    close: KeyMapping(key: Keys.esc.rawValue),  // Validate not a hint char
-    enterSearchMode: KeyMapping(key: Keys.slash.rawValue),  // Validate not a hint char
-    nextSearchOccurence: KeyMapping(key: Keys.tab.rawValue),  // Validate not a char
-    prevSearchOccurence: KeyMapping(key: Keys.tab.rawValue, flags: [.maskShift]),  // Validate not a char
-    dropLastSearchChar: KeyMapping(key: Keys.backspace.rawValue),  // Validate not a char
+    enterSearchMode: KeyMapping(key: .slash),  // Validate not a hint char
+    nextSearchOccurence: KeyMapping(key: .tab),  // Validate not a char
+    prevSearchOccurence: KeyMapping(key: .tab, modifiers: [.shift]),  // Validate not a char
+    selectOccurence: KeyMapping(key: .enter),  // Validate not a char
+    dropLastSearchChar: KeyMapping(key: .backspace),  // Validate not a char
+    toggleZIndex: KeyMapping(key: .semicolon),
 
-    mouseLeft: KeyMapping(key: Keys.h.rawValue),
-    mouseDown: KeyMapping(key: Keys.j.rawValue),
-    mouseUp: KeyMapping(key: Keys.k.rawValue),
-    mouseRight: KeyMapping(key: Keys.l.rawValue),
+    mouseLeft: KeyMapping(key: .h),
+    mouseDown: KeyMapping(key: .j),
+    mouseUp: KeyMapping(key: .k),
+    mouseRight: KeyMapping(key: .l),
 
-    scrollLeft: KeyMapping(key: Keys.h.rawValue, flags: [.maskShift]),
-    scrollDown: KeyMapping(key: Keys.j.rawValue, flags: [.maskShift]),
-    scrollUp: KeyMapping(key: Keys.k.rawValue, flags: [.maskShift]),
-    scrollRight: KeyMapping(key: Keys.l.rawValue, flags: [.maskShift]),
+    scrollLeft: KeyMapping(key: .h, modifiers: [.shift]),
+    scrollDown: KeyMapping(key: .j, modifiers: [.shift]),
+    scrollUp: KeyMapping(key: .k, modifiers: [.shift]),
+    scrollRight: KeyMapping(key: .l, modifiers: [.shift]),
 
-    scrollPageDown: KeyMapping(key: Keys.d.rawValue),
-    scrollPageUp: KeyMapping(key: Keys.u.rawValue)
+    scrollPageDown: KeyMapping(key: .d),
+    scrollPageUp: KeyMapping(key: .u),
+    scrollFullDown: KeyMapping(key: .d),
+    scrollFullUp: KeyMapping(key: .u),
+
+    enterVisual: KeyMapping(key: .v),
+    reopenGridView: KeyMapping(key: .slash), // Once first hint is selected
+    rightClick: KeyMapping(key: .dot),
+    leftClick: KeyMapping(key: .enter)
   )
 
-  public func keyMatchesEvent(keyMapping: KeyMapping, event: CGEvent) -> Bool {
-    let matchedFlags = keyMapping.flags.filter { flag in event.flags.contains(flag) }
-    if matchedFlags.count != keyMapping.flags.count {
-      return false
-    }
-
-    return event.getIntegerValueField(.keyboardEventKeycode) == keyMapping.key
-  }
-
-  private let stringToKey: [String: Keys] = [
-    "a": .a,
-    "s": .s,
-    "d": .d,
-    "f": .f,
-    "g": .g,
-    "h": .h,
-    "j": .j,
-    "k": .k,
-    "l": .l,
-    ";": .semicolon,
-    "'": .quote,
-    "<CR>": .enter,
-    "<S>": .shift,
-    "z": .z,
-    "x": .x,
-    "c": .c,
-    "v": .v,
-    "b": .b,
-    "n": .n,
-    "m": .m,
-    ",": .comma,
-    ".": .dot,
-    "/": .slash,
-    "<S-r>": .rightShift,
-    "<C>": .control,
-    "<M>": .option,  // <M> is often used for Alt/Option
-    "<D>": .command,  // <D> is commonly used for Command in Vim mappings
-    "<Space>": .space,
-    "<Caps>": .caps,
-    "<Tab>": .tab,
-    "<BS>": .backspace,
-    "<Esc>": .esc,
-
-    // Top row (QWERTY)
-    "q": .q,
-    "w": .w,
-    "e": .e,
-    "r": .r,
-    "t": .t,
-    "y": .y,
-    "u": .u,
-    "i": .i,
-    "o": .o,
-    "p": .p,
-
-    "1": .one,
-    "2": .two,
-    "3": .three,
-    "4": .four,
-    "5": .five,
-    "6": .six,
-    "7": .seven,
-    "8": .eight,
-    "9": .nine,
-    "0": .zero,
-    "-": .minus,
-    "=": .equals,
-
-    "[": .leftBracket,
-    "]": .rightBracket,
-    "\\": .backslash,
-    "`": .backTick,
-
-    "<Left>": .left,
-    "<Right>": .right,
-    "<Down>": .down,
-    "<Up>": .up,
-
-    "<Fn>": .fn,
-  ]
-
   private func parseKeyMapping(from: String, field: String) -> KeyMapping? {
-    var value = from
-    var keyStr = ""
-    while stringToKey[keyStr] == nil {
-      if let char = value.popLast() {
-        keyStr.insert(char, at: keyStr.startIndex)
-      } else {
-        print("Not a valid key mapping for '\(field)'")
-      }
+    if let mapping = KeyMapping.create(from: from) {
+      return mapping
     }
-    guard let key = stringToKey[keyStr] else {
-      print("WARNING: Impossible case executed")
-      return nil
-    }
-    var flagStr = ""
-    var flags: [CGEventFlags] = []
-    while !value.isEmpty {
-      guard let flag = stringToKey[flagStr] else {
-        flagStr.insert(value.popLast()!, at: flagStr.startIndex)
-        continue
-      }
-      switch flag {
-      case Keys.shift:
-        flags.append(.maskShift)
-      default:
-        print("Invalid flag was passed \(field)")
-        return nil
-      }
-      flagStr.removeAll()
-    }
-
-    return KeyMapping(key: key.rawValue, flags: flags)
+    print("\(field) failed to be parsed as key mapping")
+    return nil
   }
-  // TODO: Custom key mappings scope
 
   private func parseCgFloat(value: String, field: String) -> CGFloat? {
     guard let value = Float(value) else {

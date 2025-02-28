@@ -40,6 +40,7 @@ class FzFindListener: Listener {
   private var tmp: WindowBuilder?
   private let execQueue = DispatchQueue.global(qos: .userInteractive)
   private var systemMenuItems: [AxElement] = []
+  private let mappings = AppOptions.shared.keyMappings
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
@@ -54,6 +55,33 @@ class FzFindListener: Listener {
       DispatchQueue.main.async {
         self.pollSysMenu()
       }
+    }
+  }
+
+  func matches(_ event: CGEvent) -> Bool {
+    return mappings.showHints.matches(event: event)
+  }
+
+  func callback(_ event: CGEvent) {
+    if self.appListener != nil {
+      return
+    }
+    state.search = ""
+    self.hintsWindow.front().hideCursor().call()
+    state.loading = true
+    self.appListener = AppListener(onEvent: self.onTyping)
+    AppEventManager.add(self.appListener!)
+
+    DispatchQueue.main.async {
+      let start = DispatchTime.now().uptimeNanoseconds
+      let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 16)
+      if AppOptions.shared.debugPerf {
+        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
+      }
+      self.hints = hints
+      self.state.hints = self.hints
+      self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
+      self.state.loading = false
     }
   }
 
@@ -112,8 +140,6 @@ class FzFindListener: Listener {
     self.systemMenuItems = result
   }
 
-  // Limitations:
-  // 1. Must get system from top right half using func above
   private func getVisibleEls() -> [AxElement] {
     let wg = DispatchGroup()
 
@@ -163,15 +189,7 @@ class FzFindListener: Listener {
     return result
   }
 
-  func match(_ event: CGEvent) -> Bool {
-    let flags = event.flags
-    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-
-    return flags.contains(.maskCommand) && flags.contains(.maskShift)
-      && keyCode == Keys.dot.rawValue
-  }
-
-  func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {
+  private func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {
     var uniqueEls: [AxElement] = []
 
     for el in els {
@@ -195,29 +213,6 @@ class FzFindListener: Listener {
     return uniqueEls
   }
 
-  func callback(_ event: CGEvent) {
-    if self.appListener != nil {
-      return
-    }
-    state.search = ""
-    self.hintsWindow.front().hideCursor().call()
-    state.loading = true
-    self.appListener = AppListener(onEvent: self.onTyping)
-    AppEventManager.add(self.appListener!)
-
-    DispatchQueue.main.async {
-      let start = DispatchTime.now().uptimeNanoseconds
-      let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 16)
-      if AppOptions.shared.debugPerf {
-        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
-      }
-      self.hints = hints
-      self.state.hints = self.hints
-      self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
-      self.state.loading = false
-    }
-  }
-
   private func onClose() {
     hintsWindow.hide().call()
     DispatchQueue.main.async {
@@ -232,45 +227,52 @@ class FzFindListener: Listener {
     }
   }
 
+  private func focusOccurence(prev: Bool = false, next: Bool = false) {
+    precondition((prev || next) && !(prev && next), "ERROR: Either prev or next can be true")
+
+    let search = self.state.search.lowercased().replacingOccurrences(of: " ", with: "")
+    let idxs = self.state.hints.indices.filter { i in
+      self.state.hints[i].getSearchTerm().contains(search)
+    }
+    if idxs.isEmpty {
+      return
+    }
+    guard let curIdx = idxs.firstIndex(of: self.state.fzfSelectedIdx) else {
+      return print("WARNING: That should never happen")
+    }
+    var nextIdx = prev ? max(curIdx - 1, 0) : min(curIdx + 1, idxs.count - 1)
+    print(curIdx, nextIdx)
+    if nextIdx == curIdx && prev {
+      nextIdx = idxs.count - 1
+    } else if nextIdx == curIdx && next {
+      nextIdx = 0
+    }
+    self.state.fzfSelectedIdx = idxs[nextIdx]
+  }
+
   private func onTyping(_ event: CGEvent) {
-    let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-    switch keyCode {
-    case Keys.slash.rawValue:
+    switch event {
+    case _ where mappings.enterSearchMode.matches(event: event):
       self.state.fzfMode = true
       self.state.search = ""
-    case Keys.esc.rawValue:
+    case _ where mappings.close.matches(event: event):
       return onClose()
-    case Keys.semicolon.rawValue:
-      self.state.zIndexInverted = !self.state.zIndexInverted
-    case Keys.tab.rawValue:
-      if !self.state.fzfMode {
-        fallthrough
-      }
-      let isShifting = event.flags.contains(.maskShift)
-      let search = self.state.search.lowercased().replacingOccurrences(of: " ", with: "")
-      let idxs = self.state.hints.indices.filter { i in
-        self.state.hints[i].getSearchTerm().contains(search)
-      }
-      if idxs.isEmpty {
-        return
-      }
-      guard let curIdx = idxs.firstIndex(of: self.state.fzfSelectedIdx) else {
-        return print("That should never happen")
-      }
-      let nextIdx = isShifting ? idxs[max(curIdx - 1, 0)] : idxs[min(curIdx + 1, idxs.count - 1)]
-      self.state.fzfSelectedIdx = nextIdx
-    case Keys.enter.rawValue:
-      if !self.state.fzfMode {
-        fallthrough
-      }
+    case _ where mappings.toggleZIndex.matches(event: event):
+      self.state.zIndexInverted.toggle()
+    case _ where mappings.nextSearchOccurence.matches(event: event):
+      guard self.state.fzfMode else { fallthrough }
+      focusOccurence(next: true)
+    case _ where mappings.prevSearchOccurence.matches(event: event):
+      guard self.state.fzfMode else { fallthrough }
+      focusOccurence(prev: true)
+    case _ where mappings.selectOccurence.matches(event: event):
+      guard self.state.fzfMode else { fallthrough }
       if self.state.fzfSelectedIdx != -1, let point = self.hints[self.state.fzfSelectedIdx].point {
         EventUtils.leftClick(point, event.flags)
         onClose()
       }
-    case Keys.backspace.rawValue:
-      if !self.state.fzfMode {
-        fallthrough
-      }
+    case _ where mappings.dropLastSearchChar.matches(event: event):
+      guard self.state.fzfMode else { fallthrough }
       if !state.search.isEmpty {
         state.search.removeLast()
       }

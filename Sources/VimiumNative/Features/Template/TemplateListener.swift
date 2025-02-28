@@ -6,7 +6,7 @@ class TemplateListener: Listener {
   init() {
   }
 
-  func match(_ event: CGEvent) -> Bool {
+  func matches(_ event: CGEvent) -> Bool {
     return false
   }
 
