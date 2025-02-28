@@ -166,10 +166,12 @@ watchexec -r 'swift build && .build/debug/VimiumNative'
 There is no particular strong code style or principles in this project, so do
 whatever you see fit, minor adjustments can be done at any moment later.
 
-However single key thing that needs to be followed:
+However fews key things that needs to be followed:
 
-Ensure that app is always runnable simply by running `swift build` without
-relying on IDE/Xcode features
+- Ensure that app is always runnable simply by running `swift build` without
+  relying on IDE/Xcode features
+- Don't add any dependencies because most of the times they are not required,
+  rely only on stdlib
 
 Preferred: format your code using
 [swift-format](https://github.com/swiftlang/swift-format)
