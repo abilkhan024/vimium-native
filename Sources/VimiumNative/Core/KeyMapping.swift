@@ -35,6 +35,10 @@ class KeyMapping {
 
   static func create(from: String) -> KeyMapping? {
     var value = from
+    if value.first == "'" && value.last == "'" && value.count >= 3 {
+      value.removeLast()
+      value.removeFirst()
+    }
     var keyStr = ""
     while mappingToValue[keyStr] == nil {
       if let char = value.popLast() {

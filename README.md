@@ -78,35 +78,35 @@ Avialbable options are documented in following file
 
 Default config:
 
-```
+```sh
 # Key bindings, format is <Mod>{key} mapping can be found in 
 # `Sources/VimiumNative/Core/KeyMapping.swift` -> `let mappingToValue`
-key_show_hints=<D><S>.
-key_show_grid=<D><S>,
-key_start_scroll=<D><S>j
-key_close=<Esc>
-key_enter_search_mode=/
-key_next_search_occurence=<Tab>
-key_prev_search_occurence=<S><Tab>
-key_select_occurence=<CR>
-key_drop_last_search_char=<BS>
-key_toggle_z_index=;
-key_mouse_left=h
-key_mouse_down=j
-key_mouse_up=k
-key_mouse_right=l
-key_scroll_left=<S>h
-key_scroll_down=<S>j
-key_scroll_up=<S>k
-key_scroll_right=<S>l
-key_scroll_page_down=d
-key_scroll_page_up=u
-key_scroll_full_down=<S>g
-key_scroll_full_up=g
-key_enter_visual=v
-key_reopen_grid_view=/
-key_right_click=.
-key_left_click=<CR>
+key_show_hints='<D><S>.'
+key_show_grid='<D><S>,'
+key_start_scroll='<D><S>j'
+key_close='<Esc>'
+key_enter_search_mode='/'
+key_next_search_occurence='<Tab>'
+key_prev_search_occurence='<S><Tab>'
+key_select_occurence='<CR>'
+key_drop_last_search_char='<BS>'
+key_toggle_z_index=';'
+key_mouse_left='h'
+key_mouse_down='j'
+key_mouse_up='k'
+key_mouse_right='l'
+key_scroll_left='<S>h'
+key_scroll_down='<S>j'
+key_scroll_up='<S>k'
+key_scroll_right='<S>l'
+key_scroll_page_down='d'
+key_scroll_page_up='u'
+key_scroll_full_down='<S>g'
+key_scroll_full_up='g'
+key_enter_visual='v'
+key_reopen_grid_view='/'
+key_right_click='.'
+key_left_click='<CR>'
 
 # Mouse params when entering grid mode:
 # Color by default
