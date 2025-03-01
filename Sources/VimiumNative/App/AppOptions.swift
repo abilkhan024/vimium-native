@@ -6,6 +6,10 @@ import SwiftUI
 final class AppOptions {
   static let shared = AppOptions()
 
+  struct ParseError: Error {
+    let message: String
+  }
+
   // EXAMPLE:
   //   # Color by default
   //   mouse_color_normal=#ff0000
@@ -111,17 +115,17 @@ final class AppOptions {
   var debugPerf = false
 
   var keyMappings = (
-    showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
-    showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),
-    startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),
+    showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),  // Validate has modifiers
+    showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),  // Validate has modifiers
+    startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),  // Validate has modifiers
     close: KeyMapping(key: .esc),  // Validate not a hint char
 
     enterSearchMode: KeyMapping(key: .slash),  // Validate not a hint char
-    nextSearchOccurence: KeyMapping(key: .tab),  // Validate not a char
-    prevSearchOccurence: KeyMapping(key: .tab, modifiers: [.shift]),  // Validate not a char
-    selectOccurence: KeyMapping(key: .enter),  // Validate not a char
-    dropLastSearchChar: KeyMapping(key: .backspace),  // Validate not a char
-    toggleZIndex: KeyMapping(key: .semicolon),
+    nextSearchOccurence: KeyMapping(key: .tab),  // Validate is non printable char
+    prevSearchOccurence: KeyMapping(key: .tab, modifiers: [.shift]),  // Validate is non printable char
+    selectOccurence: KeyMapping(key: .enter),  // Validate is non printable char
+    dropLastSearchChar: KeyMapping(key: .backspace),  // Validate is non printable char
+    toggleZIndex: KeyMapping(key: .semicolon),  // Validate not a hint char
 
     mouseLeft: KeyMapping(key: .h),
     mouseDown: KeyMapping(key: .j),
@@ -135,113 +139,102 @@ final class AppOptions {
 
     scrollPageDown: KeyMapping(key: .d),
     scrollPageUp: KeyMapping(key: .u),
-    scrollFullDown: KeyMapping(key: .d),
-    scrollFullUp: KeyMapping(key: .u),
+    scrollFullDown: KeyMapping(key: .g, modifiers: [.shift]),
+    scrollFullUp: KeyMapping(key: .g),
 
     enterVisual: KeyMapping(key: .v),
-    reopenGridView: KeyMapping(key: .slash), // Once first hint is selected
+    // Triggers once first hint is selected
+    reopenGridView: KeyMapping(key: .slash),
     rightClick: KeyMapping(key: .dot),
     leftClick: KeyMapping(key: .enter)
   )
 
-  private func parseKeyMapping(from: String, field: String) -> KeyMapping? {
-    if let mapping = KeyMapping.create(from: from) {
-      return mapping
-    }
-    print("\(field) failed to be parsed as key mapping")
-    return nil
+  enum KeyValidationFlag {
+    case requireModifiers
+    case charOnly
+    case nonPrintableChar
+    case notInHintChars
   }
 
-  private func parseCgFloat(value: String, field: String) -> CGFloat? {
+  private func parseKeyMapping(from: String, field: String, flags: [KeyValidationFlag] = [])
+    throws -> KeyMapping
+  {
+    guard let mapping = KeyMapping.create(from: from) else {
+      throw ParseError(message: "\(field) is not a valid key mapping")
+    }
+    if flags.contains(.requireModifiers) && mapping.modifiers.isEmpty {
+      throw ParseError(message: "\(field) must use modifiers")
+    }
+    let keyString = KeyMapping.itoa(key: mapping.key.rawValue)!
+    let keyChar = keyString.first!
+    if flags.contains(.charOnly) && String(keyChar) == keyChar.uppercased() {
+      throw ParseError(message: "\(field) must only use ascii chars")
+    } else if flags.contains(.notInHintChars) && hintChars.contains(keyChar) {
+      throw ParseError(message: "\(field) can only use chars that are not used in hint_chars")
+    } else if flags.contains(.nonPrintableChar) && !mapping.isNonPrintable() {
+      throw ParseError(message: "\(field) can only use non printable key")
+    }
+    return mapping
+  }
+
+  private func parseCgFloat(value: String, field: String) throws -> CGFloat {
     guard let value = Float(value) else {
-      print("\(field) must be float")
-      return nil
+      throw ParseError(message: "\(field) must be float")
     }
     return CGFloat(value)
   }
 
-  private func parseInt(value: String, field: String) -> Int? {
-    guard let value = Int(value) else {
-      print("\(field) must be int")
-      return nil
-    }
+  private func parseInt(value: String, field: String) throws -> Int {
+    guard let value = Int(value) else { throw ParseError(message: "\(field) must be int") }
     return value
   }
 
-  private func parseBool(value: String, field: String) -> Bool? {
+  private func parseBool(value: String, field: String) throws -> Bool {
     switch value {
     case "true":
       return true
     case "false":
       return false
     default:
-      print("\(field) must be either true or false")
-      return nil
+      throw ParseError(message: "\(field) must be either true or false")
     }
   }
 
-  private func proccessOptions(_ options: String) {
+  private func proccessOptions(_ options: String) throws {
     for option in options.components(separatedBy: .newlines) {
       if option.isEmpty || option.starts(with: "#") { continue }
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
       case "mouse_outline_width":
-        if let val = parseCgFloat(value: value, field: "mouse_outline_width") {
-          self.mouse.outlineWidth = val
-        }
+        try self.mouse.outlineWidth = parseCgFloat(value: value, field: key)
       case "mouse_outline_color":
-        if let val = parseColor(from: value, field: "mouse_outline_color") {
-          self.mouse.outlineColor = val
-        }
+        try self.mouse.outlineColor = parseColor(from: value, field: key)
       case "mouse_size":
-        if let val = parseCgFloat(value: value, field: "mouse_size") {
-          self.mouse.size = val
-        }
+        try self.mouse.size = parseCgFloat(value: value, field: key)
       case "mouse_color_normal":
-        if let val = parseColor(from: value, field: "mouse_color_normal") {
-          self.mouse.colorNormal = val
-        }
+        try self.mouse.colorNormal = parseColor(from: value, field: key)
       case "mouse_color_visual":
-        if let val = parseColor(from: value, field: "mouse_color_visual") {
-          self.mouse.colorVisual = val
-        }
+        try self.mouse.colorVisual = parseColor(from: value, field: key)
       case "hint_triangle_height":
-        if let val = parseCgFloat(value: value, field: "hint_triangle_height") {
-          self.hintTriangleHeight = val
-        }
+        try self.hintTriangleHeight = parseCgFloat(value: value, field: key)
       case "hint_font_size":
-        if let val = parseCgFloat(value: value, field: "hint_font_size") {
-          self.hintFontSize = val
-        }
+        try self.hintFontSize = parseCgFloat(value: value, field: key)
       case "cursor_step":
-        if let val = parseInt(value: value, field: "cursor_step") {
-          self.cursorStep = val
-        }
+        try self.cursorStep = parseInt(value: value, field: key)
       case "scroll_size_vertical":
-        if let val = parseInt(value: value, field: "scroll_size_vertical") {
-          self.scrollSize.vertical = val
-        }
+        try self.scrollSize.vertical = parseInt(value: value, field: key)
       case "scroll_size_vertical_page":
-        if let val = parseInt(value: value, field: "scroll_size_vertical_page") {
-          self.scrollSize.verticalPage = val
-        }
+        try self.scrollSize.verticalPage = parseInt(
+          value: value, field: key)
       case "scroll_size_horizontal":
-        if let val = parseInt(value: value, field: "scroll_size_horizontal") {
-          self.scrollSize.horizontal = val
-        }
+        try self.scrollSize.horizontal = parseInt(value: value, field: key)
       case "jiggle_when_dragging":
-        if let val = parseBool(value: value, field: "jiggle_when_dragging") {
-          self.jiggleWhenDragging = val
-        }
+        try self.jiggleWhenDragging = parseBool(value: value, field: key)
       case "color_fg":
-        if let val = parseColor(from: value, field: "color_fg") {
-          self.colors.fg = val
-        }
+        try self.colors.fg = parseColor(from: value, field: key)
       case "color_bg":
-        if let val = parseColor(from: value, field: "color_fg") {
-          self.colors.bg = val
-        }
+        try self.colors.bg = parseColor(from: value, field: key)
       case "hint_chars":
         var charsSet = Set<String>()
         let chars = value.filter { char in char.uppercased() != char.lowercased() }
@@ -249,25 +242,16 @@ final class AppOptions {
         for char in chars.split(separator: seperator) {
           charsSet.insert(String(char))
         }
-        if charsSet.count >= 8 {
-          self.hintChars = charsSet.joined(separator: seperator)
-        } else {
-          print("At least 8 chars must be used for hinting")
+        guard charsSet.count >= 8 else {
+          throw ParseError(message: "At least 8 chars must be used for hinting")
         }
+        self.hintChars = charsSet.joined(separator: seperator)
       case "grid_rows":
-        if let val = parseInt(value: value, field: "grid_cols") {
-          self.grid.rows = val
-        }
+        try self.grid.rows = parseInt(value: value, field: key)
       case "grid_cols":
-        if let val = parseInt(value: value, field: "grid_cols") {
-          self.grid.cols = val
-        }
+        try self.grid.cols = parseInt(value: value, field: key)
       case "grid_font_size":
-        if let size = Float(value) {
-          self.grid.fontSize = CGFloat(size)
-        } else {
-          print("grid_font_size must be Float")
-        }
+        try self.grid.fontSize = parseCgFloat(value: value, field: key)
       case "hint_selection":
         switch value {
         case "role":
@@ -275,38 +259,99 @@ final class AppOptions {
         case "action":
           self.selection = SelectionType.action
         default:
-          print("hint_selection must be either action or role")
+          throw ParseError(message: "hint_selection must be either action or role")
         }
       case "debug_perf":
-        if let val = parseBool(value: value, field: "debug_perf") {
-          self.debugPerf = val
-        }
+        try self.debugPerf = parseBool(value: value, field: key)
       case "hint_text":
-        if let val = parseBool(value: value, field: "hint_text") {
-          self.hintText = val
-        }
+        try self.hintText = parseBool(value: value, field: key)
       case "system_menu_poll":
-        if let val = Int(value), val == 0 || val >= 10 {
-          self.systemMenuPoll = val
-        } else {
-          print("grid_rows must be 0 or greater than 10")
-        }
+        guard let val = Int(value), val == 0 || val >= 10
+        else { throw ParseError(message: "system_menu_poll must be 0 or greater than 10") }
+        self.systemMenuPoll = val
       case "traverse_hidden":
-        if let val = parseBool(value: value, field: "traverse_hidden") {
-          self.traverseHidden = val
-        }
+        try self.traverseHidden = parseBool(value: value, field: key)
+      case "key_show_hints":
+        try self.keyMappings.showHints = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_show_grid":
+        try self.keyMappings.showGrid = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_start_scroll":
+        try self.keyMappings.startScroll = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_close":
+        try self.keyMappings.close = parseKeyMapping(
+          from: value, field: key, flags: [.notInHintChars])
+
+      case "key_enter_search_mode":
+        try self.keyMappings.enterSearchMode = parseKeyMapping(
+          from: value, field: key, flags: [.notInHintChars])
+
+      case "key_next_search_occurence":
+        try self.keyMappings.nextSearchOccurence = parseKeyMapping(
+          from: value, field: key, flags: [.nonPrintableChar])
+
+      case "key_prev_search_occurence":
+        try self.keyMappings.prevSearchOccurence = parseKeyMapping(
+          from: value, field: key, flags: [.nonPrintableChar])
+
+      case "key_select_occurence":
+        try self.keyMappings.selectOccurence = parseKeyMapping(
+          from: value, field: key, flags: [.nonPrintableChar])
+      case "key_drop_last_search_char":
+        try self.keyMappings.dropLastSearchChar = parseKeyMapping(
+          from: value, field: key, flags: [.nonPrintableChar])
+      case "key_toggle_z_index":
+        try self.keyMappings.toggleZIndex = parseKeyMapping(
+          from: value, field: key, flags: [.notInHintChars])
+      case "key_mouse_left":
+        try self.keyMappings.mouseLeft = parseKeyMapping(from: value, field: key)
+      case "key_mouse_down":
+        try self.keyMappings.mouseDown = parseKeyMapping(from: value, field: key)
+      case "key_mouse_up":
+        try self.keyMappings.mouseUp = parseKeyMapping(from: value, field: key)
+      case "key_mouse_right":
+        try self.keyMappings.mouseRight = parseKeyMapping(from: value, field: key)
+      case "key_scroll_left":
+        try self.keyMappings.scrollLeft = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_scroll_down":
+        try self.keyMappings.scrollDown = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_scroll_up":
+        try self.keyMappings.scrollUp = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_scroll_right":
+        try self.keyMappings.scrollRight = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_scroll_page_down":
+        try self.keyMappings.scrollPageDown = parseKeyMapping(from: value, field: key)
+      case "key_scroll_page_up":
+        try self.keyMappings.scrollPageUp = parseKeyMapping(from: value, field: key)
+      case "key_scroll_full_down":
+        try self.keyMappings.scrollFullDown = parseKeyMapping(from: value, field: key)
+      case "key_scroll_full_up":
+        try self.keyMappings.scrollFullUp = parseKeyMapping(from: value, field: key)
+      case "key_enter_visual":
+        try self.keyMappings.enterVisual = parseKeyMapping(from: value, field: key)
+      case "key_reopen_grid_view":
+        try self.keyMappings.reopenGridView = parseKeyMapping(from: value, field: key)
+      case "key_right_click":
+        try self.keyMappings.rightClick = parseKeyMapping(from: value, field: key)
+      case "key_left_click":
+        try self.keyMappings.leftClick = parseKeyMapping(from: value, field: key)
       default: continue
       }
     }
   }
 
-  private func parseColor(from hex: String, field: String) -> Color? {
+  private func parseColor(from hex: String, field: String) throws -> Color {
     var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
     hexSanitized = hexSanitized.hasPrefix("#") ? String(hexSanitized.dropFirst()) : hexSanitized
 
     guard hexSanitized.count == 6 || hexSanitized.count == 8 else {
-      print("\(field) must be a hex string, e.g. #000000")
-      return nil
+      throw ParseError(message: "\(field) must be a hex string, e.g. #000000")
     }
 
     var rgbValue: UInt64 = 0
@@ -334,10 +379,14 @@ final class AppOptions {
 
     do {
       let contents = try String(contentsOfFile: path, encoding: .utf8)
-      proccessOptions(contents)
+      try proccessOptions(contents)
       print("Config parsed successfully")
+    } catch let err as ParseError {
+      print("Parse error in config file: \(err.message)")
+      exit(1)
     } catch {
       print("Error reading config file: \(error)")
+      exit(1)
     }
   }
 

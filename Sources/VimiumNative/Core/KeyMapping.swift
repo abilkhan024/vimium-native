@@ -9,7 +9,7 @@ class KeyMapping {
     self.modifiers = modifiers
   }
 
-  public func matches(event: CGEvent) -> Bool {
+  func matches(event: CGEvent) -> Bool {
     for flag in modifiers.map({ mod in mod.cgEventFlag }) {
       if !event.flags.contains(flag) {
         return false
@@ -17,6 +17,20 @@ class KeyMapping {
     }
 
     return key.rawValue == event.getIntegerValueField(.keyboardEventKeycode)
+  }
+
+  static func itoa(key: Int64) -> String? {
+    return valueToMapping[key]
+  }
+
+  func isNonPrintable() -> Bool {
+    switch key {
+    case Key.enter, Key.esc, Key.tab, Key.backspace:
+      return true
+    default:
+      return false
+    }
+
   }
 
   static func create(from: String) -> KeyMapping? {
@@ -48,7 +62,19 @@ class KeyMapping {
       mods.append(mod)
       modStr.removeAll()
     }
+    if modStr.isEmpty {
+      return KeyMapping(key: key, modifiers: mods)
+    }
 
+    guard let modValue = mappingToValue[modStr] else {
+      print("Mod value failed to parse '\(modStr)'")
+      return nil
+    }
+    guard let mod = Modifier(rawValue: modValue) else {
+      print("WARNING: Modifier failed to be parsed")
+      return nil
+    }
+    mods.append(mod)
     return KeyMapping(key: key, modifiers: mods)
   }
 
@@ -121,6 +147,10 @@ class KeyMapping {
     "<M>": Modifier.option.rawValue,
     "<D>": Modifier.command.rawValue,
   ]
+
+  private static let valueToMapping: [Int64: String] = Dictionary(
+    uniqueKeysWithValues: mappingToValue.map { key, val in (val, key) }
+  )
 }
 
 enum Modifier: Int64 {

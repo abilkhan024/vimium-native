@@ -26,13 +26,22 @@ P.S. More about contribution to the project could be found [here](#contriubtion)
 Install pkg from
 [Releases](https://github.com/abilkhan024/vimium-native/releases) section.
 
+It will show that the package is malware when you try to open it because it's
+not notarized as notarization requires apple's paid developer account
+
+To install anyways go to
+`Settings -> Privacy & Security -> Open VimiumNative anyway`
+
 ## Run
 
 After installing pkg binary will be available that you can run you can add alias
 in your rc file
 
 ```sh
-/usr/local/bin/VimiumNative/VimiumNative
+alias vinative="/usr/local/bin/VimiumNative/VimiumNative"
+
+# Runs the binary
+vinative
 ```
 
 ## Uninstall
@@ -67,11 +76,39 @@ pkgbuild --root .build/release --identifier com.vimium.VimiumNative --version 1.
 Avialbable options are documented in following file
 [AppOptions.swift](https://github.com/abilkhan024/vimium-native/blob/main/Sources/VimiumNative/App/AppOptions.swift)
 
-Example config:
+Default config:
 
-```sh
-# Mouse params when entering grid mode
+```
+# Key bindings, format is <Mod>{key} mapping can be found in 
+# `Sources/VimiumNative/Core/KeyMapping.swift` -> `let mappingToValue`
+key_show_hints=<D><S>.
+key_show_grid=<D><S>,
+key_start_scroll=<D><S>j
+key_close=<Esc>
+key_enter_search_mode=/
+key_next_search_occurence=<Tab>
+key_prev_search_occurence=<S><Tab>
+key_select_occurence=<CR>
+key_drop_last_search_char=<BS>
+key_toggle_z_index=;
+key_mouse_left=h
+key_mouse_down=j
+key_mouse_up=k
+key_mouse_right=l
+key_scroll_left=<S>h
+key_scroll_down=<S>j
+key_scroll_up=<S>k
+key_scroll_right=<S>l
+key_scroll_page_down=d
+key_scroll_page_up=u
+key_scroll_full_down=<S>g
+key_scroll_full_up=g
+key_enter_visual=v
+key_reopen_grid_view=/
+key_right_click=.
+key_left_click=<CR>
 
+# Mouse params when entering grid mode:
 # Color by default
 mouse_color_normal=#ff0000
 # Color when dragging
