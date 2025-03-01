@@ -13,6 +13,9 @@ P.S. More about contribution to the project could be found [here](#contriubtion)
 
 https://github.com/user-attachments/assets/de0c46ed-926b-4da0-998f-dea710d05745
 
+If the video fails to play you can view it on my
+[GitHub pages](https://abilkhan024.github.io/vimium-native-demo.mp4)
+
 ## Breakdown
 
 Let's breakdown what is being showed on the demo, to start using the app
