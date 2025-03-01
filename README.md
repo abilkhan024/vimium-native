@@ -94,17 +94,26 @@ ls /var/db/receipts/ | grep com.vimium.VimiumNative | xargs -I{} sudo rm -rf /va
 Showed for transparency of the build step, no need to run it
 
 ```sh
-# Build the application
-swift build -c release
+# Build the application striping symbols
+swift build --disable-prefetching -Xswiftc -gnone -c release --scratch-path /tmp/vimium-native-build
+
+# Remove unnecessary files that expose symbols
+rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/swift-version*.txt && \
+rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/description.json && \
+rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/ModuleCache && \
+rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/Modules && \
+rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/VimiumNative.build && \
+rm -rf /tmp/vimium-native-build/release.yaml && \
+rm -rf /tmp/vimium-native-build/build.db
 
 # Creating installable package
-pkgbuild --root .build/release --identifier com.vimium.VimiumNative --version 1.0 --install-location /usr/local/bin/VimiumNative VimiumNative.pkg
+pkgbuild --root /tmp/vimium-native-build/release --identifier com.vimium.VimiumNative --version 1.0 --install-location /usr/local/bin/VimiumNative VimiumNative.pkg
 ```
 
 # Options
 
-Avialbable options are documented in following file
-[AppOptions.swift](https://github.com/abilkhan024/vimium-native/blob/main/Sources/VimiumNative/App/AppOptions.swift)
+Config file will be read from $HOME/.config/vimium or `$VIMIUM_CONFIG_PATH` if
+it's set
 
 Default config:
 
