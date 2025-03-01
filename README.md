@@ -1,6 +1,6 @@
 # Overview
 
-`VimiumNative` is a free and open-source cli tool that allows you to use your
+`VimiumNative` is a free and open-source MacOS app that allows you to use your
 mac without mouse in your day to day. It's some combination of other tools like
 `HomeRow`, `Shortcat`, `Mouseless`, `Warpd`. To some degree you may use this app
 as an alternative to any of them. If you find that some part lacks in
