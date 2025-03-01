@@ -15,7 +15,7 @@ final class AppOptions {
   //   mouse_color_normal=#ff0000
   //   # Color when dragging
   //   mouse_color_visual=#000000
-  //   # Color of the outiline when in mouse mode
+  //   # Color of the outline when in mouse mode
   //   mouse_outline_color=#ff0000
   //   # Hides Outline when set to 0
   //   mouse_outline_width=0
@@ -34,7 +34,7 @@ final class AppOptions {
 
   // EXAMPLE:
   //   hint_triangle_height=8.0
-  // INFO: Height of th traingle indicating point that will be clicked
+  // INFO: Height of the triangle indicating point that will be clicked
   var hintTriangleHeight: CGFloat = 6.0
 
   // EXAMPLE:
@@ -87,7 +87,7 @@ final class AppOptions {
   // homerow behaviour, and generally faster, but ignores some elements
   // ----------------------------------------------------------------
   // action: Shows if element provides non ignored action
-  // role: Shows if element role is in hardcoded array
+  // role: Shows if element role is in hard-coded array
   var selection = SelectionType.role
   enum SelectionType {
     case role
@@ -104,7 +104,7 @@ final class AppOptions {
 
   // EXAMPLE:
   //   jiggle_when_dragging=true
-  // INFO: Sometimes macos refuses to register drag when you immidetly jump
+  // INFO: Sometimes macos refuses to register drag when you immediately jump
   // between labels, you can enable this flag that will jiggle once you start
   // dragging
   var jiggleWhenDragging = false

@@ -9,15 +9,45 @@ functionality or performance it's higly encouraged to contribute to the project
 
 P.S. More about contribution to the project could be found [here](#contriubtion)
 
-# Demo (TODO)
+# Quick demo
 
-## Hint
+https://abilkhan024.github.io/vimium-native-demo.mp4
 
-## Hint with search
+## Breakdown
 
-## Grid
+Let's breakdown what is being showed on the demo, to start using the app
 
-## Scroll
+### Hints
+
+Trigger hint view by pressing `Cmd + Shift + .` which will hint interactive
+elements, which you can click, if some hints overlap you can toggle their
+z-index by pressing `;`
+
+### Hints with search
+
+Trigger hint view by pressing default key binding of `Cmd + Shift + .` which
+will hint interactive elements, press `/` which will enter search mode and start
+typing the text that you want to click, once the hint is focused press enter
+
+### Grid & Mouse
+
+Trigger grid view by pressing default key binding of `Cmd + Shift + ,` which
+will show labeled cells where you can place your mouse, and left click using
+`<CR>` (aka Enter), or right click using `.`, or move your mouse using `hjkl`
+(directions are just like in vi), toggle dragging by pressing `v`, show grid
+hint again to place mouse to different point using `/`
+
+### Scroll
+
+Trigger scrolling by pressing default key binding of `Cmd + Shift + j`, now you
+can use keys `d,u,<S>h,<S>j,<S>k,<S>l` directions are just like in vi (`<S>`
+indicates shift) to scroll the current cursor position which is center of screen
+by default
+
+## Keybindings
+
+Every keybinding used in this demo can be customized using config file more in
+[options](#options)
 
 # Getting started
 
@@ -108,12 +138,18 @@ key_reopen_grid_view='/'
 key_right_click='.'
 key_left_click='<CR>'
 
+# Font size of the hint label
+hint_font_size=14.0
+
+# Height of the triangle indicating point that will be clicked
+hint_triangle_height=6.0
+
 # Mouse params when entering grid mode:
 # Color by default
 mouse_color_normal=#ff0000
 # Color when dragging
 mouse_color_visual=#00ffff
-# Color of the outiline when in mouse mode
+# Color of the outline when in mouse mode
 mouse_outline_color=#00ffff
 # Hides Outline when set to 0
 mouse_outline_width=8.0
@@ -175,7 +211,7 @@ debug_perf=false
 ```sh
 # Prerequisites: 
 # - Clone however you want and cd into the dir
-# - Ensure that dev utils are installed so swift is avialable and matches
+# - Ensure that dev utils are installed so swift is available and matches
 #   with Package.swift version (6.0 as of now)
 
 # Build in release mode
