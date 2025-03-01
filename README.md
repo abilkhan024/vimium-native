@@ -11,7 +11,7 @@ P.S. More about contribution to the project could be found [here](#contriubtion)
 
 # Quick demo
 
-https://abilkhan024.github.io/vimium-native-demo.mp4
+https://github.com/user-attachments/assets/de0c46ed-926b-4da0-998f-dea710d05745
 
 ## Breakdown
 
