@@ -103,6 +103,7 @@ class GridListener: Listener {
     let scrollSize = AppOptions.shared.scrollSize
     let maxScroll = 99999
 
+    // TODO: Implement sorting to find the mapping that is closest to what user have pressed, and do that action
     switch keyCode {
     case Key.one.rawValue, Key.two.rawValue, Key.three.rawValue, Key.four.rawValue,
       Key.five.rawValue, Key.six.rawValue, Key.seven.rawValue, Key.eight.rawValue,
@@ -118,22 +119,22 @@ class GridListener: Listener {
     case _ where mappings.leftClick.matches(event: event):
       EventUtils.leftClick(self.mouseState.position, event.flags)
       mouseState.dragging = false
-    case _ where mappings.mouseLeft.matches(event: event):
-      moveRelative(offsetX: -cusrorOffset)
     case _ where mappings.scrollLeft.matches(event: event):
       scrollRelative(offsetX: -scrollSize.horizontal * digits)
-    case _ where mappings.mouseRight.matches(event: event):
-      moveRelative(offsetX: cusrorOffset)
+    case _ where mappings.mouseLeft.matches(event: event):
+      moveRelative(offsetX: -cusrorOffset)
     case _ where mappings.scrollRight.matches(event: event):
       scrollRelative(offsetX: scrollSize.horizontal * digits)
-    case _ where mappings.mouseDown.matches(event: event):
-      moveRelative(offsetY: cusrorOffset)
+    case _ where mappings.mouseRight.matches(event: event):
+      moveRelative(offsetX: cusrorOffset)
     case _ where mappings.scrollDown.matches(event: event):
       scrollRelative(offsetY: scrollSize.vertical * digits)
-    case _ where mappings.mouseUp.matches(event: event):
-      moveRelative(offsetY: -cusrorOffset)
+    case _ where mappings.mouseDown.matches(event: event):
+      moveRelative(offsetY: cusrorOffset)
     case _ where mappings.scrollUp.matches(event: event):
       scrollRelative(offsetY: -scrollSize.vertical * digits)
+    case _ where mappings.mouseUp.matches(event: event):
+      moveRelative(offsetY: -cusrorOffset)
     case _ where mappings.scrollPageDown.matches(event: event):
       scrollRelative(offsetY: scrollSize.verticalPage * digits)
     case _ where mappings.scrollPageUp.matches(event: event):
