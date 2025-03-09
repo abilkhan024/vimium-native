@@ -15,6 +15,8 @@ class GridListener: Listener {
   private var hintSelected = false
   private var isReopened = false
   private let mappings = AppOptions.shared.keyMappings
+  private let maxScroll = 99999
+  private let scrollSize = AppOptions.shared.scrollSize
   // NOTE: May be adding projection where the next point will land for each
   // direction?
   private var digits = ""
@@ -28,29 +30,119 @@ class GridListener: Listener {
     return mappings.showGrid.matches(event: event) || mappings.startScroll.matches(event: event)
   }
 
-  func callback(_ event: CGEvent) {
-    switch event {
-    case _ where mappings.startScroll.matches(event: event):
-      guard let screen = NSScreen.main else { return }
-      clearHints()
-      hintSelected = true
-      mouseWindow.front().call()
-      moveTo(x: screen.frame.maxX / 2, y: screen.frame.maxY / 2)
-    case _ where mappings.showGrid.matches(event: event):
-      let frame = hintsWindow.native().frame
-      hintsState.rows = AppOptions.shared.grid.rows
-      hintsState.cols = AppOptions.shared.grid.cols
-      hintsState.hintWidth = frame.width / CGFloat(hintsState.cols)
-      hintsState.hintHeight = frame.height / CGFloat(hintsState.rows)
-      hintsState.sequence = HintUtils.getLabels(from: hintsState.rows * hintsState.cols)
-      hintsState.matchingCount = hintsState.sequence.count
+  private lazy var keyToPrimeAction: [KeyMapping: (_: CGEvent) -> Bool] = [
+    mappings.startScroll: { _ in
+      guard let screen = NSScreen.main else { return true }
+      self.clearHints()
+      self.hintSelected = true
+      self.mouseWindow.front().call()
+      self.moveTo(x: screen.frame.maxX / 2, y: screen.frame.maxY / 2)
+      return false
+    },
+    mappings.showGrid: { _ in
+      let frame = self.hintsWindow.native().frame
+      self.hintsState.rows = AppOptions.shared.grid.rows
+      self.hintsState.cols = AppOptions.shared.grid.cols
+      self.hintsState.hintWidth = frame.width / CGFloat(self.hintsState.cols)
+      self.hintsState.hintHeight = frame.height / CGFloat(self.hintsState.rows)
+      self.hintsState.sequence = HintUtils.getLabels(
+        from: self.hintsState.rows * self.hintsState.cols)
+      self.hintsState.matchingCount = self.hintsState.sequence.count
 
-      if !hintSelected && appListener != nil {
+      if !self.hintSelected && self.appListener != nil {
+        return true
+      }
+      self.hintSelected = false
+      self.hintsWindow.front().hideCursor().call()
+      return false
+    },
+
+  ]
+
+  private lazy var keyToAction: [KeyMapping: (_: CGEvent) -> Void] = [
+    mappings.reopenGridView: { _ in
+      self.hintsWindow.front().hideCursor().call()
+      self.hintSelected = false
+      self.isReopened = true
+    },
+    mappings.rightClick: { event in
+      EventUtils.rightClick(self.mouseState.position, event.flags)
+    },
+    mappings.leftClick: { event in
+      EventUtils.leftClick(self.mouseState.position, event.flags)
+      self.mouseState.dragging = false
+    },
+    mappings.scrollLeft: { _ in
+      self.scrollRelative(offsetX: -self.scrollSize.horizontal * (Int(self.digits) ?? 1))
+    },
+    mappings.mouseLeft: { _ in
+      let cusrorOffset = (Int(self.digits) ?? 1) * AppOptions.shared.cursorStep
+      self.moveRelative(offsetX: -cusrorOffset)
+    },
+    mappings.scrollRight: { _ in
+      self.scrollRelative(offsetX: self.scrollSize.horizontal * (Int(self.digits) ?? 1))
+    },
+    mappings.mouseRight: { _ in
+      let cusrorOffset = (Int(self.digits) ?? 1) * AppOptions.shared.cursorStep
+      self.moveRelative(offsetX: cusrorOffset)
+    },
+    mappings.scrollDown: { _ in
+      self.scrollRelative(offsetY: self.scrollSize.vertical * (Int(self.digits) ?? 1))
+    },
+    mappings.mouseDown: { _ in
+      let cusrorOffset = (Int(self.digits) ?? 1) * AppOptions.shared.cursorStep
+      self.moveRelative(offsetY: cusrorOffset)
+    },
+    mappings.scrollUp: { _ in
+      self.scrollRelative(offsetY: -self.scrollSize.vertical * (Int(self.digits) ?? 1))
+    },
+    mappings.mouseUp: { _ in
+      let cusrorOffset = (Int(self.digits) ?? 1) * AppOptions.shared.cursorStep
+      self.moveRelative(offsetY: -cusrorOffset)
+    },
+    mappings.scrollPageDown: { _ in
+      self.scrollRelative(offsetY: self.scrollSize.verticalPage * (Int(self.digits) ?? 1))
+    },
+    mappings.scrollPageUp: { _ in
+      self.scrollRelative(offsetY: -self.scrollSize.verticalPage * (Int(self.digits) ?? 1))
+    },
+    mappings.scrollFullDown: { _ in
+      self.scrollRelative(offsetY: self.maxScroll)
+    },
+    mappings.scrollFullUp: { _ in
+      self.scrollRelative(offsetY: -self.maxScroll)
+    },
+    mappings.enterVisual: { _ in
+      self.mouseState.dragging.toggle()
+      guard self.mouseState.dragging else {
+        EventUtils.leftMouseUp(self.mouseState.position)
         return
       }
-      hintSelected = false
-      hintsWindow.front().hideCursor().call()
-    default: print("Impossible case")
+      EventUtils.leftMouseDown(self.mouseState.position)
+
+      if AppOptions.shared.jiggleWhenDragging {
+        let jiggleStep = 5
+        DispatchQueue.main.asyncAfter(deadline: .now()) {
+          self.moveRelative(offsetX: jiggleStep)
+          DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+            self.moveRelative(offsetX: -jiggleStep)
+          }
+        }
+      }
+    },
+  ]
+
+  func callback(_ event: CGEvent) {
+
+    guard
+      let bestActionKey = keyToPrimeAction.keys.max(by: { a, b in
+        a.getScore(event: event) < b.getScore(event: event)
+      }),
+      let bestAction = keyToPrimeAction[bestActionKey]
+    else { return }
+
+    if bestAction(event) {
+      return
     }
 
     if let listener = appListener {
@@ -61,7 +153,6 @@ class GridListener: Listener {
   }
 
   private func onTyping(_ event: CGEvent) {
-    let digits = Int(self.digits) ?? 1
     let isClose = mappings.close.matches(event: event)
     if isClose && hintSelected || isClose && !isReopened {
       return onClose()
@@ -98,77 +189,22 @@ class GridListener: Listener {
       }
     }
 
-    let cusrorOffset = digits * AppOptions.shared.cursorStep
     let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
-    let scrollSize = AppOptions.shared.scrollSize
-    let maxScroll = 99999
 
-    // TODO: Implement sorting to find the mapping that is closest to what user have pressed, and do that action
     switch keyCode {
     case Key.one.rawValue, Key.two.rawValue, Key.three.rawValue, Key.four.rawValue,
       Key.five.rawValue, Key.six.rawValue, Key.seven.rawValue, Key.eight.rawValue,
       Key.nine.rawValue, Key.zero.rawValue:
       guard let char = EventUtils.getEventChar(from: event) else { return }
       self.digits.append(char)
-    case _ where mappings.reopenGridView.matches(event: event):
-      hintsWindow.front().hideCursor().call()
-      hintSelected = false
-      isReopened = true
-    case _ where mappings.rightClick.matches(event: event):
-      EventUtils.rightClick(self.mouseState.position, event.flags)
-    case _ where mappings.leftClick.matches(event: event):
-      EventUtils.leftClick(self.mouseState.position, event.flags)
-      mouseState.dragging = false
-    case _ where mappings.scrollLeft.matches(event: event):
-      scrollRelative(offsetX: -scrollSize.horizontal * digits)
-    case _ where mappings.mouseLeft.matches(event: event):
-      moveRelative(offsetX: -cusrorOffset)
-    case _ where mappings.scrollRight.matches(event: event):
-      scrollRelative(offsetX: scrollSize.horizontal * digits)
-    case _ where mappings.mouseRight.matches(event: event):
-      moveRelative(offsetX: cusrorOffset)
-    case _ where mappings.scrollDown.matches(event: event):
-      scrollRelative(offsetY: scrollSize.vertical * digits)
-    case _ where mappings.mouseDown.matches(event: event):
-      moveRelative(offsetY: cusrorOffset)
-    case _ where mappings.scrollUp.matches(event: event):
-      scrollRelative(offsetY: -scrollSize.vertical * digits)
-    case _ where mappings.mouseUp.matches(event: event):
-      moveRelative(offsetY: -cusrorOffset)
-    case _ where mappings.scrollPageDown.matches(event: event):
-      scrollRelative(offsetY: scrollSize.verticalPage * digits)
-    case _ where mappings.scrollPageUp.matches(event: event):
-      scrollRelative(offsetY: -scrollSize.verticalPage * digits)
-    case _ where mappings.scrollPageDown.matches(event: event):
-      scrollRelative(offsetY: scrollSize.verticalPage * digits)
-    case _ where mappings.scrollPageUp.matches(event: event):
-      scrollRelative(offsetY: -scrollSize.verticalPage * digits)
-    case _ where mappings.scrollFullDown.matches(event: event):
-      scrollRelative(offsetY: maxScroll)
-    case _ where mappings.scrollFullUp.matches(event: event):
-      scrollRelative(offsetY: -maxScroll)
-    case _ where mappings.enterVisual.matches(event: event):
-      mouseState.dragging = !mouseState.dragging
-      guard mouseState.dragging else {
-        // if let event = CGEvent(source: nil) {
-        //   EventUtils.leftMouseUp(event.location)
-        // }
-        EventUtils.leftMouseUp(self.mouseState.position)
-        return
-      }
-      EventUtils.leftMouseDown(self.mouseState.position)
-
-      if AppOptions.shared.jiggleWhenDragging {
-        let jiggleStep = 5
-        DispatchQueue.main.asyncAfter(deadline: .now()) {
-          self.moveRelative(offsetX: jiggleStep)
-          DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-            self.moveRelative(offsetX: -jiggleStep)
-          }
-        }
-      }
     default:
-      return
+      guard
+        let bestActionKey = keyToAction.keys.max(by: { a, b in
+          a.getScore(event: event) < b.getScore(event: event)
+        }),
+        let bestAction = keyToAction[bestActionKey]
+      else { return }
+      bestAction(event)
     }
 
   }

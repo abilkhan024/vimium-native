@@ -337,17 +337,13 @@ final class AppOptions {
       case "key_mouse_right":
         try self.keyMappings.mouseRight = parseKeyMapping(from: value, field: key)
       case "key_scroll_left":
-        try self.keyMappings.scrollLeft = parseKeyMapping(
-          from: value, field: key, flags: [.requireModifiers])
+        try self.keyMappings.scrollLeft = parseKeyMapping(from: value, field: key)
       case "key_scroll_down":
-        try self.keyMappings.scrollDown = parseKeyMapping(
-          from: value, field: key, flags: [.requireModifiers])
+        try self.keyMappings.scrollDown = parseKeyMapping(from: value, field: key)
       case "key_scroll_up":
-        try self.keyMappings.scrollUp = parseKeyMapping(
-          from: value, field: key, flags: [.requireModifiers])
+        try self.keyMappings.scrollUp = parseKeyMapping(from: value, field: key)
       case "key_scroll_right":
-        try self.keyMappings.scrollRight = parseKeyMapping(
-          from: value, field: key, flags: [.requireModifiers])
+        try self.keyMappings.scrollRight = parseKeyMapping(from: value, field: key)
       case "key_scroll_page_down":
         try self.keyMappings.scrollPageDown = parseKeyMapping(from: value, field: key)
       case "key_scroll_page_up":

@@ -241,7 +241,6 @@ class FzFindListener: Listener {
       return print("WARNING: That should never happen")
     }
     var nextIdx = prev ? max(curIdx - 1, 0) : min(curIdx + 1, idxs.count - 1)
-    print(curIdx, nextIdx)
     if nextIdx == curIdx && prev {
       nextIdx = idxs.count - 1
     } else if nextIdx == curIdx && next {
@@ -250,6 +249,7 @@ class FzFindListener: Listener {
     self.state.fzfSelectedIdx = idxs[nextIdx]
   }
 
+  // NOTE: Assuming that there will be no usage of conflicting keymappings
   private func onTyping(_ event: CGEvent) {
     switch event {
     case _ where mappings.enterSearchMode.matches(event: event):

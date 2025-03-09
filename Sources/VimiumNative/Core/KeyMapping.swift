@@ -1,12 +1,23 @@
 import CoreGraphics
 
-class KeyMapping {
+class KeyMapping: Hashable {
   let key: Key
   let modifiers: [Modifier]
 
   init(key: Key, modifiers: [Modifier] = []) {
     self.key = key
     self.modifiers = modifiers
+  }
+
+  static func == (lhs: KeyMapping, rhs: KeyMapping) -> Bool {
+    return lhs.modifiers == rhs.modifiers && lhs.key == rhs.key
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine(key)
+    for mod in modifiers {
+      hasher.combine(mod.rawValue)
+    }
   }
 
   func matches(event: CGEvent) -> Bool {
@@ -17,6 +28,23 @@ class KeyMapping {
     }
 
     return key.rawValue == event.getIntegerValueField(.keyboardEventKeycode)
+  }
+
+  // Gets how likely the event matches the key mapping
+  func getScore(event: CGEvent) -> Int {
+    if key.rawValue != event.getIntegerValueField(.keyboardEventKeycode) {
+      return 0
+    }
+    var count = Modifier.allCases.count
+    for mod in Modifier.allCases {
+      if event.flags.contains(mod.cgEventFlag) && !modifiers.contains(mod)
+        || !event.flags.contains(mod.cgEventFlag) && modifiers.contains(mod)
+      {
+        count -= 1
+      }
+    }
+
+    return count
   }
 
   static func itoa(key: Int64) -> String? {
@@ -157,7 +185,7 @@ class KeyMapping {
   )
 }
 
-enum Modifier: Int64 {
+enum Modifier: Int64, CaseIterable {
   case shift = 56
   case control = 59
   case option = 58
