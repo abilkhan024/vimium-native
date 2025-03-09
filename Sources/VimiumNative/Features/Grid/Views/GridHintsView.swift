@@ -93,9 +93,11 @@ private struct GridHintItemView: View {
         .background(AppOptions.shared.colors.bg)
         .opacity(0.55)
         .overlay(Rectangle().stroke(AppOptions.shared.colors.fg, lineWidth: 1))
+      let font = AppOptions.shared.getPreferredFont(size: AppOptions.shared.grid.fontSize)
 
       Text(text.uppercased())
-        .font(.system(size: AppOptions.shared.grid.fontSize, weight: .bold))
+        .font(font)
+        .kerning(AppOptions.shared.letterSpacing)
         .foregroundColor(AppOptions.shared.colors.fg)
         .frame(width: hintWidth, height: hintHeight)
     }.opacity(isMatching ? 1 : 0.001)

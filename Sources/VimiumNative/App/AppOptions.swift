@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // TODO: May be allow changing them on the fly via some shortcut
@@ -9,6 +10,16 @@ final class AppOptions {
   struct ParseError: Error {
     let message: String
   }
+
+  // EXAMPLE:
+  //   # Defaults to system font
+  //   font_family=FiraCode Nerd Font Bold
+  var fontFamily: String?
+
+  // EXAMPLE:
+  //   # Letter spacing for hint text
+  //   letter_spacing=0.0
+  var letterSpacing: CGFloat = 0
 
   // EXAMPLE:
   //   # Color by default
@@ -200,12 +211,24 @@ final class AppOptions {
     }
   }
 
+  public func getPreferredFont(size: CGFloat) -> Font {
+    if let family = AppOptions.shared.fontFamily {
+      return .custom(family, size: size)
+
+    }
+    return .system(size: AppOptions.shared.grid.fontSize, weight: .bold)
+  }
+
   private func proccessOptions(_ options: String) throws {
     for option in options.components(separatedBy: .newlines) {
       if option.isEmpty || option.starts(with: "#") { continue }
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "letter_spacing":
+        try self.letterSpacing = parseCgFloat(value: value, field: key)
+      case "font_family":
+        self.fontFamily = value
       case "mouse_outline_width":
         try self.mouse.outlineWidth = parseCgFloat(value: value, field: key)
       case "mouse_outline_color":
@@ -344,6 +367,19 @@ final class AppOptions {
       default: continue
       }
     }
+
+    guard let family = self.fontFamily else { return }
+    guard NSFont(name: family, size: 12) != nil else {
+      throw ParseError(
+        message: """
+          'font_family' must be a valid font that is available system wide
+
+          To get list of valid fonts list use:
+
+              vimium list-fonts
+
+          """)
+    }
   }
 
   private func parseColor(from hex: String, field: String) throws -> Color {
@@ -391,6 +427,9 @@ final class AppOptions {
   }
 
   private init() {
+    if !AppCommands.shared.getConfigNeeded() {
+      return
+    }
     if let configPath = ProcessInfo.processInfo.environment["VIMIUM_CONFIG_PATH"] {
       print("VIMIUM_CONFIG_PATH is set reading from custom path '\(configPath)'")
       readConfigFile(path: configPath)

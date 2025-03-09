@@ -40,7 +40,8 @@ struct FzFindHintsView: View {
             backgroundColor: AppOptions.shared.colors.bg
           ) {
             Text(text.uppercased())
-              .font(.system(size: hintOptions.hintSize, weight: .bold))
+              .font(AppOptions.shared.getPreferredFont(size: hintOptions.hintSize))
+              .kerning(AppOptions.shared.letterSpacing)
               .foregroundColor(AppOptions.shared.colors.fg)
               .padding([.horizontal], hintOptions.padding)
           }

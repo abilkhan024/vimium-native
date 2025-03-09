@@ -150,6 +150,12 @@ key_reopen_grid_view='/'
 key_right_click='.'
 key_left_click='<CR>'
 
+# Font family used in hints use vimium list-fonts to view all fonts
+font_family=system
+
+# Letter spacing for hint text
+letter_spacing=0.0
+
 # Font size of the hint label
 hint_font_size=14.0
 

@@ -13,6 +13,7 @@ final class AppCommands {
   enum Action: String {
     case daemon = "daemon"
     case kill = "kill"
+    case listFonts = "list-fonts"
   }
 
   private init() {}
@@ -32,6 +33,29 @@ final class AppCommands {
     } catch {
       print("Failed to write daemon pid, terminating")
       p.terminate()
+    }
+  }
+
+  func listFonts() {
+    for font in NSFontManager.shared.availableFontFamilies {
+      if let members = NSFontManager.shared.availableMembers(ofFontFamily: font) {
+        for member in members {
+          print(member[0])
+        }
+      }
+    }
+  }
+
+  func getConfigNeeded() -> Bool {
+    if CommandLine.arguments.count == 1 {
+      return true
+    }
+    let command = CommandLine.arguments[1]
+    switch command {
+    case Action.daemon.rawValue:
+      return true
+    default:
+      return false
     }
   }
 
@@ -73,6 +97,7 @@ final class AppCommands {
 
             vimium daemon - Run in daemon mode
             vimium kill - Kill process running daemon mode
+            vimium list-fonts - List avaible fonts on the system
             vimium - Run in foreground
 
       """)
@@ -88,6 +113,9 @@ final class AppCommands {
       if !killRunning() {
         print("Didn't find any daemons")
       }
+      exit(0)
+    case Action.listFonts.rawValue:
+      listFonts()
       exit(0)
     case Action.daemon.rawValue:
       let _ = killRunning()
