@@ -11,15 +11,25 @@ struct GridMouseView: View {
       state.dragging ? AppOptions.shared.mouse.colorVisual : AppOptions.shared.mouse.colorNormal
     let outlineWidth = AppOptions.shared.mouse.outlineWidth
     let outlineColor = AppOptions.shared.mouse.outlineColor
+    let overlay = RoundedRectangle(cornerRadius: 10)
+      .stroke(outlineColor, lineWidth: outlineWidth)
 
-    ZStack {
+    GeometryReader { geo in
       Ellipse()
         .fill(color)
         .frame(width: length, height: length)
         .position(self.state.position)
-    }.overlay(
-      RoundedRectangle(cornerRadius: 10)
-        .stroke(outlineColor, lineWidth: outlineWidth)
-    )
+
+      if let rect = state.focusedRect {
+        ZStack {}
+          .frame(width: rect.width, height: rect.height)
+          .overlay(overlay)
+          .position(x: rect.midX, y: rect.midY)
+      } else {
+        ZStack {}
+          .frame(width: geo.frame(in: .global).width, height: geo.frame(in: .global).height)
+          .overlay(overlay)
+      }
+    }
   }
 }

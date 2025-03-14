@@ -32,11 +32,24 @@ class GridListener: Listener {
 
   private lazy var keyToPrimeAction: [KeyMapping: (_: CGEvent) -> Bool] = [
     mappings.startScroll: { _ in
-      guard let screen = NSScreen.main else { return true }
+      guard let app = NSWorkspace.shared.frontmostApplication else { return true }
       self.clearHints()
       self.hintSelected = true
       self.mouseWindow.front().call()
-      self.moveTo(x: screen.frame.maxX / 2, y: screen.frame.maxY / 2)
+      let pid = app.processIdentifier
+      let appEl = AXUIElementCreateApplication(app.processIdentifier)
+      var winRef: CFTypeRef?
+      let winResult = AXUIElementCopyAttributeValue(
+        appEl, kAXMainWindowAttribute as CFString, &winRef)
+
+      guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return true }
+      let windowEl = AxElement(mainWindow)
+
+      guard let bound = windowEl.bound else {
+        return true
+      }
+      self.mouseState.focusedRect = bound
+      self.moveTo(x: bound.midX, y: bound.midY)
       return false
     },
     mappings.showGrid: { _ in
@@ -138,6 +151,7 @@ class GridListener: Listener {
       let bestActionKey = keyToPrimeAction.keys.max(by: { a, b in
         a.getScore(event: event) < b.getScore(event: event)
       }),
+      bestActionKey.matches(event: event),
       let bestAction = keyToPrimeAction[bestActionKey]
     else { return }
 
@@ -183,6 +197,7 @@ class GridListener: Listener {
         clearHints()
         hintSelected = true
         mouseWindow.front().call()
+        self.mouseState.focusedRect = nil
         return moveTo(x: x, y: y)
       default:
         return
@@ -202,6 +217,7 @@ class GridListener: Listener {
         let bestActionKey = keyToAction.keys.max(by: { a, b in
           a.getScore(event: event) < b.getScore(event: event)
         }),
+        bestActionKey.matches(event: event),
         let bestAction = keyToAction[bestActionKey]
       else { return }
       bestAction(event)
