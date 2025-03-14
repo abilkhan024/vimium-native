@@ -94,7 +94,7 @@ ls /var/db/receipts/ | grep com.vimium.VimiumNative | xargs -I{} sudo rm -rf /va
 
 ### `pkgbuild` for distribution
 
-Showed for transparency of the build step, no need to run it
+Shown for transparency of the build step, no need to run it
 
 ```sh
 # Build the application striping symbols

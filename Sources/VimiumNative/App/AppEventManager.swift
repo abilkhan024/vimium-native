@@ -40,7 +40,7 @@ class AppEventManager {
           return preserve
         }
 
-        for listener in AppEventManager.listeners {
+        for listener in AppEventManager.listeners.reversed() {
           if listener.matches(event) {
             DispatchQueue.main.async { listener.callback(event) }
             return nil
