@@ -67,8 +67,8 @@ To install anyways go to
 
 ## Run
 
-After installing pkg binary will be available that you can run you can add alias
-in your rc file
+After installing pkg, binary will be available that you can run. You can also
+add alias to the binary path in your rc file
 
 ```sh
 alias vinative="/usr/local/bin/VimiumNative/VimiumNative"

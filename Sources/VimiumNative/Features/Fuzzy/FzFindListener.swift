@@ -249,34 +249,57 @@ class FzFindListener: Listener {
     self.state.fzfSelectedIdx = idxs[nextIdx]
   }
 
-  // NOTE: Assuming that there will be no usage of conflicting keymappings
-  private func onTyping(_ event: CGEvent) {
-    switch event {
-    case _ where mappings.enterSearchMode.matches(event: event):
+  private lazy var keyToPrimeAction: [KeyMapping: (_: CGEvent) -> Bool] = [
+    mappings.enterSearchMode: { _ in
       self.state.fzfMode = true
       self.state.search = ""
-    case _ where mappings.close.matches(event: event):
-      return onClose()
-    case _ where mappings.toggleZIndex.matches(event: event):
+      return false
+    },
+    mappings.close: { _ in
+      self.onClose()
+      return false
+    },
+    mappings.toggleZIndex: { _ in
       self.state.zIndexInverted.toggle()
-    case _ where mappings.nextSearchOccurence.matches(event: event):
-      guard self.state.fzfMode else { fallthrough }
-      focusOccurence(next: true)
-    case _ where mappings.prevSearchOccurence.matches(event: event):
-      guard self.state.fzfMode else { fallthrough }
-      focusOccurence(prev: true)
-    case _ where mappings.selectOccurence.matches(event: event):
-      guard self.state.fzfMode else { fallthrough }
+      return false
+    },
+    mappings.nextSearchOccurence: { _ in
+      guard self.state.fzfMode else { return true }
+      self.focusOccurence(next: true)
+      return false
+    },
+    mappings.prevSearchOccurence: { _ in
+      guard self.state.fzfMode else { return true }
+      self.focusOccurence(prev: true)
+      return false
+    },
+    mappings.selectOccurence: { event in
+      guard self.state.fzfMode else { return true }
       if self.state.fzfSelectedIdx != -1, let point = self.hints[self.state.fzfSelectedIdx].point {
         EventUtils.leftClick(point, event.flags)
-        onClose()
+        self.onClose()
       }
-    case _ where mappings.dropLastSearchChar.matches(event: event):
-      guard self.state.fzfMode else { fallthrough }
-      if !state.search.isEmpty {
-        state.search.removeLast()
+      return false
+    },
+    mappings.dropLastSearchChar: { _ in
+      guard self.state.fzfMode else { return true }
+      if !self.state.search.isEmpty {
+        self.state.search.removeLast()
       }
-    default:
+      return false
+    },
+
+  ]
+
+  // NOTE: Assuming that there will be no usage of conflicting keymappings
+  private func onTyping(_ event: CGEvent) {
+    guard
+      let bestActionKey = keyToPrimeAction.keys.max(by: { a, b in
+        a.getScore(event: event) < b.getScore(event: event)
+      }),
+      bestActionKey.matches(event: event),
+      let bestAction = keyToPrimeAction[bestActionKey]
+    else {
       guard let char = EventUtils.getEventChar(from: event) else { return }
       state.search.append(char)
       if self.state.fzfMode {
@@ -305,6 +328,9 @@ class FzFindListener: Listener {
         EventUtils.leftClick(point, event.flags)
         onClose()
       }
+      return
     }
+
+    let _ = bestAction(event)
   }
 }
