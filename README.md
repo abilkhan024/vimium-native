@@ -272,3 +272,6 @@ Preferred: format your code using
 - Multiple screen navigation, fzfind works for main screen only _(feel free to
   contribute if that's an issue)_
 - Smooth scrolling _(feel free to contribute if that's an issue)_
+- AeroSpace support. Due to how aerospace manages workspaces, hinting behaviour
+  is unstable and unpleseant to work with, instead prefer some manager that
+  won't change window sizes and their positions, e.g. custom hammerspon
