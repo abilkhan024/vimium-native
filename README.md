@@ -56,26 +56,27 @@ Every keybinding used in this demo can be customized using config file more in
 
 ## Install
 
-Install pkg from
-[Releases](https://github.com/abilkhan024/vimium-native/releases) section.
+```sh
+# Tap formula that contains latest build
+brew tap abilkhan024/tools
 
-It will show that the package is malware when you try to open it because it's
-not notarized as notarization requires apple's paid developer account
+# Install latest build
+brew install vimium-native
+```
 
-To install anyways go to
-`Settings -> Privacy & Security -> Open VimiumNative anyway`
-
-## Run
-
-After installing pkg, binary will be available that you can run. You can also
-add alias to the binary path in your rc file
+## Update
 
 ```sh
-alias vinative="/usr/local/bin/VimiumNative/VimiumNative"
+# Uninstall old version
+brew uninstall vimium-native
 
-# Runs the binary
-vinative
+# Fetch latest formula
+brew update
+
+# Reinstall latest build
+brew install vimium-native
 ```
+
 
 ## Uninstall
 
@@ -84,33 +85,10 @@ If you didn't like the application you can easily uninstall it by following:
 _P.S. constructive criticism is appreciated in the `Issues` section_
 
 ```sh
-# Remove files
-sudo rm -rf /usr/local/bin/VimiumNative
-# Forget the package
-sudo pkgutil --forget com.vimium.VimiumNative
-# Delete package receipt if anything is left
-ls /var/db/receipts/ | grep com.vimium.VimiumNative | xargs -I{} sudo rm -rf /var/db/receipts/{}
-```
-
-### `pkgbuild` for distribution
-
-Shown for transparency of the build step, no need to run it
-
-```sh
-# Build the application striping symbols
-swift build --disable-prefetching -Xswiftc -gnone -c release --scratch-path /tmp/vimium-native-build
-
-# Remove unnecessary files that expose symbols
-rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/swift-version*.txt && \
-rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/description.json && \
-rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/ModuleCache && \
-rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/Modules && \
-rm -rf /tmp/vimium-native-build/arm64-apple-macosx/release/VimiumNative.build && \
-rm -rf /tmp/vimium-native-build/release.yaml && \
-rm -rf /tmp/vimium-native-build/build.db
-
-# Creating installable package
-pkgbuild --root /tmp/vimium-native-build/release --identifier com.vimium.VimiumNative --version 1.0 --install-location /usr/local/bin/VimiumNative VimiumNative.pkg
+# Uninstall binary
+brew uninstall vimium-native
+# Untap homebrew formula
+brew untap abilkhan024/tools
 ```
 
 # Options
@@ -250,6 +228,27 @@ swift build
 # Build in debug and watch for file changes requires
 # [watchexec](https://github.com/watchexec/watchexec)
 watchexec -r 'swift build && .build/debug/VimiumNative'
+```
+
+## Build for distribution
+
+Shown for transparency of the build step, no need to run it
+
+```sh
+# Build the application striping symbols & remove unnecessary files that expose symbols
+swift build --disable-prefetching -Xswiftc -gnone -c release --scratch-path ./vimium-native-build && \
+rm -rf ./vimium-native-build/arm64-apple-macosx/release/swift-version*.txt && \
+rm -rf ./vimium-native-build/arm64-apple-macosx/release/description.json && \
+rm -rf ./vimium-native-build/arm64-apple-macosx/release/ModuleCache && \
+rm -rf ./vimium-native-build/arm64-apple-macosx/release/Modules && \
+rm -rf ./vimium-native-build/arm64-apple-macosx/release/VimiumNative.build && \
+rm -rf ./vimium-native-build/arm64-apple-macosx/release/VimiumNative.build && \
+rm -rf ./vimium-native-build/release.yaml && \
+rm -rf ./vimium-native-build/build.db && \
+rm -rf ./vimium-native-build/release/*.json && \
+rm -rf ./vimium-native-build/release/*.product && \
+sh -c 'cd ./vimium-native-build/release && tar -czvf ../../../vimium-native-build.tar.gz ./VimiumNative' && \
+rm -rf ./vimium-native-build
 ```
 
 # Contriubtion

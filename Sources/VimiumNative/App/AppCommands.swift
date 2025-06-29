@@ -5,7 +5,7 @@ import Foundation
 final class AppCommands {
   static let shared = AppCommands()
 
-  let appPath = CommandLine.arguments[0]
+  let appBin = CommandLine.arguments[0]
   let daemonPath = "/tmp/vimium-native-daemon"
   let daemonLogPath = "/tmp/vimium-native-daemon.log"
   let fs = FileManager.default
@@ -25,13 +25,14 @@ final class AppCommands {
     }
     p.standardOutput = FileHandle(forWritingAtPath: daemonLogPath)
     p.standardError = FileHandle(forWritingAtPath: daemonLogPath)
-    p.executableURL = URL(fileURLWithPath: appPath)
-    try? p.run()
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    p.arguments = [appBin]
     do {
+      try p.run()
       try "\(p.processIdentifier)".write(toFile: daemonPath, atomically: true, encoding: .utf8)
       print("Started in daemon mode, PID: \(p.processIdentifier)")
-    } catch {
-      print("Failed to write daemon pid, terminating")
+    } catch let error {
+      print("Failed with error \(error), terminating...")
       p.terminate()
     }
   }
