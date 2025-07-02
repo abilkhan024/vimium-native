@@ -186,7 +186,7 @@ class FzFindListener: Listener {
     }
     wg.wait()
 
-    return result
+    return result.sorted(by: { a, b in a.getSortableKey() < b.getSortableKey() })
   }
 
   private func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {

@@ -209,6 +209,14 @@ final class AxElement: @unchecked Sendable {
     return true
   }
 
+  func getSortableKey() -> String {
+    guard let bound = self.bound, let role = self.role else {
+      print("Impossible case when visible doesn't have basic fields, but unsafe to throw")
+      return ""
+    }
+    return "\(bound.minX)\(bound.maxX)\(bound.minY)\(bound.maxY)\(role)\(getSearchTerm())"
+  }
+
   func getSearchTerm() -> String {
     if self.searchTerm != nil {
       return self.searchTerm!
