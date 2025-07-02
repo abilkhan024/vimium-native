@@ -8,6 +8,9 @@ private func dfs(
   _ onFound: @escaping @Sendable (_: AxElement) -> Void
 ) {
   let visible = el.getIsVisible(frame, parents, flags)
+  if parents.contains(where: { parent in parent.raw == el.raw }) {
+    return
+  }
   if visible == false {
     return
   }
