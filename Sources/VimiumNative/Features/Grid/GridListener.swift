@@ -17,6 +17,9 @@ class GridListener: Listener {
   private let mappings = AppOptions.shared.keyMappings
   private let maxScroll = 99999
   private let scrollSize = AppOptions.shared.scrollSize
+  private var dblClickTimer: DispatchSourceTimer?
+  private var clickCount = 0
+
   // NOTE: May be adding projection where the next point will land for each
   // direction?
   private var digits = ""
@@ -82,7 +85,17 @@ class GridListener: Listener {
       EventUtils.rightClick(self.mouseState.position, event.flags)
     },
     mappings.leftClick: { event in
-      EventUtils.leftClick(self.mouseState.position, event.flags)
+      self.dblClickTimer?.cancel()
+      self.dblClickTimer = DispatchSource.makeTimerSource(queue: DispatchQueue.global())
+      self.dblClickTimer?.schedule(deadline: .now() + NSEvent.doubleClickInterval)
+      self.dblClickTimer?.setEventHandler {
+        self.clickCount = 0
+      }
+      self.clickCount += 1
+      self.dblClickTimer?.resume()
+
+      let safeCount = self.clickCount == 0 ? 1 : self.clickCount
+      EventUtils.leftClick(self.mouseState.position, event.flags, count: safeCount)
       self.mouseState.dragging = false
     },
     mappings.scrollLeft: { _ in

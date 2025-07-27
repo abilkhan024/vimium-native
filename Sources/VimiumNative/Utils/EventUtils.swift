@@ -41,17 +41,32 @@ class EventUtils {
     return point
   }
 
-  static func leftMouseDown(_ point: CGPoint, _ flags: CGEventFlags = []) {
-    postMouse(.leftMouseDown, .left, point, flags)
+  private static func postMouse(
+    _ type: CGEventType,
+    _ button: CGMouseButton,
+    _ point: CGPoint,
+    _ flags: CGEventFlags = [],
+    count: Int = 1
+  ) {
+    let eventDown = CGEvent(
+      mouseEventSource: nil, mouseType: type, mouseCursorPosition: point,
+      mouseButton: button)
+    eventDown?.flags = flags
+    eventDown?.setIntegerValueField(.mouseEventClickState, value: Int64(count))
+    eventDown?.post(tap: .cghidEventTap)
   }
 
-  static func leftMouseUp(_ point: CGPoint, _ flags: CGEventFlags = []) {
-    postMouse(.leftMouseUp, .left, point, flags)
+  static func leftMouseDown(_ point: CGPoint, _ flags: CGEventFlags = [], count: Int = 1) {
+    postMouse(.leftMouseDown, .left, point, flags, count: count)
   }
 
-  static func leftClick(_ point: CGPoint, _ flags: CGEventFlags = []) {
-    leftMouseDown(point, flags)
-    leftMouseUp(point, flags)
+  static func leftMouseUp(_ point: CGPoint, _ flags: CGEventFlags = [], count: Int = 1) {
+    postMouse(.leftMouseUp, .left, point, flags, count: count)
+  }
+
+  static func leftClick(_ point: CGPoint, _ flags: CGEventFlags = [], count: Int = 1) {
+    leftMouseDown(point, flags, count: count)
+    leftMouseUp(point, flags, count: count)
   }
 
   static func rightClick(_ point: CGPoint, _ flags: CGEventFlags = []) {
@@ -72,18 +87,4 @@ class EventUtils {
 
     return nil
   }
-
-  private static func postMouse(
-    _ type: CGEventType,
-    _ button: CGMouseButton,
-    _ point: CGPoint,
-    _ flags: CGEventFlags = []
-  ) {
-    let eventDown = CGEvent(
-      mouseEventSource: nil, mouseType: type, mouseCursorPosition: point,
-      mouseButton: button)
-    eventDown?.flags = flags
-    eventDown?.post(tap: .cghidEventTap)
-  }
-
 }
