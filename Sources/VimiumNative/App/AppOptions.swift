@@ -268,7 +268,7 @@ final class AppOptions {
         guard charsSet.count >= 8 else {
           throw ParseError(message: "At least 8 chars must be used for hinting")
         }
-        self.hintChars = charsSet.joined(separator: seperator)
+        self.hintChars = chars
       case "grid_rows":
         try self.grid.rows = parseInt(value: value, field: key)
       case "grid_cols":

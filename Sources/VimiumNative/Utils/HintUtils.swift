@@ -16,6 +16,7 @@ class HintUtils {
             seq.append(sub + char)
           }
         }
+        seq.sort { a, b in Set(a).count > Set(b).count }
         labelSequence.append(seq)
       }
       idx = idx + 1
