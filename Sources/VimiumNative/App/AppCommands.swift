@@ -6,8 +6,6 @@ final class AppCommands {
   static let shared = AppCommands()
 
   let appBin = CommandLine.arguments[0]
-  let daemonPath = "/tmp/vimium-native-daemon"
-  let daemonLogPath = "/tmp/vimium-native-daemon.log"
   let fs = FileManager.default
 
   enum Action: String {
@@ -20,16 +18,10 @@ final class AppCommands {
 
   func daemonize() {
     let p = Process()
-    if !fs.fileExists(atPath: daemonLogPath) {
-      fs.createFile(atPath: daemonLogPath, contents: nil, attributes: nil)
-    }
-    p.standardOutput = FileHandle(forWritingAtPath: daemonLogPath)
-    p.standardError = FileHandle(forWritingAtPath: daemonLogPath)
     p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     p.arguments = [appBin]
     do {
       try p.run()
-      try "\(p.processIdentifier)".write(toFile: daemonPath, atomically: true, encoding: .utf8)
       print("Started in daemon mode, PID: \(p.processIdentifier)")
     } catch let error {
       print("Failed with error \(error), terminating...")
@@ -60,19 +52,61 @@ final class AppCommands {
     }
   }
 
-  func killRunning() -> Bool {
-    do {
-      let content = try String(contentsOfFile: daemonPath, encoding: .utf8)
-      guard let pid = Int32(content) else {
-        print("Impossible case, daemon file doesn't contain valid pid")
-        exit(1)
+  func findProcesses(path target: String) -> [pid_t] {
+    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
+    var size = 0
+
+    if sysctl(&mib, u_int(mib.count), nil, &size, nil, 0) != 0 {
+      return []
+    }
+
+    let count = size / MemoryLayout<kinfo_proc>.stride
+    let buffer = UnsafeMutablePointer<kinfo_proc>.allocate(capacity: count)
+
+    defer { buffer.deallocate() }
+
+    if sysctl(&mib, u_int(mib.count), buffer, &size, nil, 0) != 0 {
+      return []
+    }
+
+    var result: [pid_t] = []
+
+    for i in 0..<count {
+      let proc = buffer[i].kp_proc
+      let path = getPath(pid: proc.p_pid)
+
+      if path == target {
+        result.append(proc.p_pid)
       }
-      try fs.removeItem(atPath: daemonLogPath)
-      kill(pid, SIGKILL)
-      return true
-    } catch {
+    }
+
+    return result
+  }
+
+  func getPath(pid: pid_t) -> String? {
+    var buf = [CChar](repeating: 0, count: Int(PATH_MAX))
+    let ret = proc_pidpath(pid, &buf, UInt32(buf.count))
+    if ret > 0 {
+      return String(utf8String: buf)
+    }
+    return nil
+  }
+
+  func killRunning() -> Bool {
+    let currentPid = getpid()
+    guard let currentPath = getPath(pid: currentPid) else {
+      print("Impossible case: couldn't resolve exec file path")
       return false
     }
+    var killedSomePid = false
+    for pid in findProcesses(path: currentPath) {
+      if pid != currentPid {
+        killedSomePid = true
+        kill(pid, SIGKILL)
+      }
+    }
+
+    return killedSomePid
   }
 
   func runMenu() {
