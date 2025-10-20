@@ -203,6 +203,9 @@ jiggle_when_dragging=false
 # set to random value e.g. "nil" if you don't want the described behaviour
 abc_layout=com.apple.keylayout.ABC
 
+# Controls if menu item should be visible in the system tray: true | false
+show_menu_item=true
+
 # When developing and want to check performance
 debug_perf=false
 ```
