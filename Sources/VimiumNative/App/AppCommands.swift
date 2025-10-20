@@ -35,6 +35,8 @@ final class AppCommands {
     let p = Process()
     p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
     p.arguments = [appBin]
+    p.standardOutput = nil
+    p.standardError = nil
     do {
       try p.run()
       print("Started in daemon mode, PID: \(p.processIdentifier)")
