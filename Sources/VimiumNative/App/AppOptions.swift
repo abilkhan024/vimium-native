@@ -438,20 +438,31 @@ final class AppOptions {
     }
   }
 
+  func getConfigPath() -> (path: String, message: String) {
+    if let configPath = ProcessInfo.processInfo.environment["VIMIUM_CONFIG_PATH"] {
+      return (
+        path: configPath,
+        message: "VIMIUM_CONFIG_PATH is set reading from custom path '\(configPath)'"
+      )
+    }
+    let filename = "vimium"
+    let fileManager = FileManager.default
+    let homeDirectoryURL = fileManager.homeDirectoryForCurrentUser
+    let configDirectoryURL = homeDirectoryURL.appendingPathComponent(".config", isDirectory: true)
+    let filePath = configDirectoryURL.appendingPathComponent(filename).path
+    return (
+      path: filePath,
+      message: "VIMIUM_CONFIG_PATH is NOT set reading from default path '\(filePath)'"
+    )
+  }
+
   private init() {
     if !AppCommands.shared.getConfigNeeded() {
       return
     }
-    if let configPath = ProcessInfo.processInfo.environment["VIMIUM_CONFIG_PATH"] {
-      print("VIMIUM_CONFIG_PATH is set reading from custom path '\(configPath)'")
-      readConfigFile(path: configPath)
-    } else {
-      let filename = "vimium"
-      let fileManager = FileManager.default
-      let homeDirectoryURL = fileManager.homeDirectoryForCurrentUser
-      let configDirectoryURL = homeDirectoryURL.appendingPathComponent(".config", isDirectory: true)
-      let filePath = configDirectoryURL.appendingPathComponent(filename).path
-      readConfigFile(path: filePath)
-    }
+    let (path, message) = getConfigPath()
+
+    print(message)
+    readConfigFile(path: path)
   }
 }

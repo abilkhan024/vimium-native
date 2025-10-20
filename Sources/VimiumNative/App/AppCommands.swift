@@ -82,6 +82,10 @@ final class AppCommands {
     return killedSomePid
   }
 
+  @objc private func editConfig() {
+    NSWorkspace.shared.open(URL(fileURLWithPath: AppOptions.shared.getConfigPath().path))
+  }
+
   private func setupAndRun() {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
@@ -91,11 +95,19 @@ final class AppCommands {
       statusItem.button?.title = "𝑽𝑰"
 
       let menu = NSMenu()
+      let editConfgItem = NSMenuItem(
+        title: "Edit config",
+        action: #selector(editConfig),
+        keyEquivalent: ""
+      )
+      editConfgItem.target = self
+      menu.addItem(editConfgItem)
+
       menu.addItem(
         NSMenuItem(
           title: "Quit",
           action: #selector(NSApp.terminate),
-          keyEquivalent: "q"
+          keyEquivalent: ""
         )
       )
       statusItem.menu = menu
