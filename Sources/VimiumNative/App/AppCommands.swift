@@ -82,16 +82,24 @@ final class AppCommands {
     return killedSomePid
   }
 
-  private func runMenu() {
+  private func setupAndRun() {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
 
-    let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    statusItem.button?.title = "𝑽𝑰"
+    if AppOptions.shared.showMenuItem {
+      let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+      statusItem.button?.title = "𝑽𝑰"
 
-    let menu = NSMenu()
-    menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApp.terminate), keyEquivalent: "q"))
-    statusItem.menu = menu
+      let menu = NSMenu()
+      menu.addItem(
+        NSMenuItem(
+          title: "Quit",
+          action: #selector(NSApp.terminate),
+          keyEquivalent: "q"
+        )
+      )
+      statusItem.menu = menu
+    }
     app.run()
   }
 
@@ -114,7 +122,7 @@ final class AppCommands {
 
   func run() {
     if isForeground {
-      return runMenu()
+      return setupAndRun()
     }
     let command = CommandLine.arguments[1]
     switch command {

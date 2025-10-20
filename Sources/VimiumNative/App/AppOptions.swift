@@ -132,6 +132,11 @@ final class AppOptions {
   // set to "nil" if you don't want the described behaviour
   var abcLayout = "com.apple.keylayout.ABC"
 
+  // EXAMPLE:
+  //   show_menu_item=true
+  // NOTE: Controls if menu item should be set
+  var showMenuItem = true
+
   var keyMappings = (
     showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
     showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),
@@ -226,12 +231,14 @@ final class AppOptions {
     return .system(size: AppOptions.shared.grid.fontSize, weight: .bold)
   }
 
-  private func proccessOptions(_ options: String) throws {
+  private func processOptions(_ options: String) throws {
     for option in options.components(separatedBy: .newlines) {
       if option.isEmpty || option.starts(with: "#") { continue }
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "show_menu_item":
+        try self.showMenuItem = parseBool(value: value, field: key)
       case "abc_layout":
         self.abcLayout = value
       case "letter_spacing":
@@ -420,7 +427,7 @@ final class AppOptions {
 
     do {
       let contents = try String(contentsOfFile: path, encoding: .utf8)
-      try proccessOptions(contents)
+      try processOptions(contents)
       print("Config parsed successfully")
     } catch let err as ParseError {
       print("Parse error in config file: \(err.message)")
