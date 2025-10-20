@@ -8,23 +8,21 @@ class InputSourceUtils {
     TISCopyCurrentKeyboardInputSource().takeRetainedValue()
   }
 
-  private static func getInputSourceId(src: TISInputSource) -> String {
+  static func getInputSourceId(src: TISInputSource) -> String {
     guard let prop = TISGetInputSourceProperty(src, kTISPropertyInputSourceID) else { return "" }
     return unsafeBitCast(prop, to: CFString.self) as String
   }
 
-  private static func getAllInputSources() -> [TISInputSource] {
+  static func getAllInputSources() -> [TISInputSource] {
     TISCreateInputSourceList(
       [kTISPropertyInputSourceCategory: kTISCategoryKeyboardInputSource] as CFDictionary,
       false
     ).takeRetainedValue() as! [TISInputSource]
   }
 
-  private static func findLatinInputSource() -> TISInputSource? {
+  private static func findAbcInputSource() -> TISInputSource? {
     for src in getAllInputSources() {
-      let id = getInputSourceId(src: src)
-      let isLatin = id == "com.apple.keylayout.ABC"
-      if isLatin {
+      if getInputSourceId(src: src) == AppOptions.shared.abcLayout {
         return src
       }
     }
@@ -37,9 +35,9 @@ class InputSourceUtils {
     current = nil
   }
 
-  static func selectLatin() {
+  static func selectAbc() {
     current = getCurrentInputSource()
-    guard let latin = findLatinInputSource() else { return }
-    TISSelectInputSource(latin)
+    guard let target = findAbcInputSource() else { return }
+    TISSelectInputSource(target)
   }
 }

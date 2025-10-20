@@ -70,7 +70,7 @@ class FzFindListener: Listener {
       return
     }
     state.search = ""
-    InputSourceUtils.selectLatin()
+    InputSourceUtils.selectAbc()
     hintsWindow.front().hideCursor().call()
     state.loading = true
     appListener = AppListener(onEvent: self.onTyping)

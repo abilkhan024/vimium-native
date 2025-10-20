@@ -198,6 +198,11 @@ grid_font_size=14.0
 # between labels. You can enable this flag to jiggle once you start dragging
 jiggle_when_dragging=false
 
+# Indicates your preferred abc layout i.e. layout
+# that contains english letters, layout will be switched to it when selecting label
+# set to random value e.g. "nil" if you don't want the described behaviour
+abc_layout=com.apple.keylayout.ABC
+
 # When developing and want to check performance
 debug_perf=false
 ```

@@ -166,7 +166,7 @@ class GridListener: Listener {
       bestActionKey.matches(event: event),
       let bestAction = keyToPrimeAction[bestActionKey]
     else { return }
-    InputSourceUtils.selectLatin()
+    InputSourceUtils.selectAbc()
 
     if bestAction(event) {
       return

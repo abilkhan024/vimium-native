@@ -125,18 +125,25 @@ final class AppOptions {
   // INFO: When developing and want to check performance
   var debugPerf = false
 
-  var keyMappings = (
-    showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),  // Validate has modifiers
-    showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),  // Validate has modifiers
-    startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),  // Validate has modifiers
-    close: KeyMapping(key: .esc),  // Validate not a hint char
+  // EXAMPLE:
+  //   abc_layout=com.apple.keylayout.ABC
+  // NOTE: Indicates your preferred abc layout i.e. layout
+  // that contains english letters, layout will be switched to it when selecting label
+  // set to "nil" if you don't want the described behaviour
+  var abcLayout = "com.apple.keylayout.ABC"
 
-    enterSearchMode: KeyMapping(key: .slash),  // Validate not a hint char
-    nextSearchOccurence: KeyMapping(key: .tab),  // Validate is non printable char
-    prevSearchOccurence: KeyMapping(key: .tab, modifiers: [.shift]),  // Validate is non printable char
-    selectOccurence: KeyMapping(key: .enter),  // Validate is non printable char
-    dropLastSearchChar: KeyMapping(key: .backspace),  // Validate is non printable char
-    toggleZIndex: KeyMapping(key: .semicolon),  // Validate not a hint char
+  var keyMappings = (
+    showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
+    showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),
+    startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),
+    close: KeyMapping(key: .esc),
+
+    enterSearchMode: KeyMapping(key: .slash),
+    nextSearchOccurence: KeyMapping(key: .tab),
+    prevSearchOccurence: KeyMapping(key: .tab, modifiers: [.shift]),
+    selectOccurence: KeyMapping(key: .enter),
+    dropLastSearchChar: KeyMapping(key: .backspace),
+    toggleZIndex: KeyMapping(key: .semicolon),
 
     mouseLeft: KeyMapping(key: .h),
     mouseDown: KeyMapping(key: .j),
@@ -225,6 +232,8 @@ final class AppOptions {
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "abc_layout":
+        self.abcLayout = value
       case "letter_spacing":
         try self.letterSpacing = parseCgFloat(value: value, field: key)
       case "font_family":
