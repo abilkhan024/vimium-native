@@ -31,13 +31,19 @@ class InputSourceUtils {
 
   static func restoreCurrent() {
     guard let cur = current else { return }
-    TISSelectInputSource(cur)
-    current = nil
+    let realCurrent = getCurrentInputSource()
+    if realCurrent != cur {
+      TISSelectInputSource(cur)
+      current = nil
+    }
   }
 
   static func selectAbc() {
-    current = getCurrentInputSource()
+    let realCurrent = getCurrentInputSource()
     guard let target = findAbcInputSource() else { return }
-    TISSelectInputSource(target)
+    if realCurrent != target {
+      TISSelectInputSource(target)
+      current = realCurrent
+    }
   }
 }
