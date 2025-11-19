@@ -3,15 +3,15 @@ import CoreGraphics
 
 @Sendable
 private func dfs(
-  _ el: AxElement, _ parents: [AxElement], _ wg: DispatchGroup, _ frame: AxElement.Frame,
+  _ el: AxElement, _ parents: [AxElement], _ wg: DispatchGroup,
   _ execQueue: DispatchQueue, _ flags: AxElement.Flags,
   _ onFound: @escaping @Sendable (_: AxElement) -> Void
 ) {
-  let visible = el.getIsVisible(frame, parents, flags)
   if parents.contains(where: { parent in parent.raw == el.raw }) {
     return
   }
-  if visible == false {
+  let visible = el.getIsVisible(flags)
+  if visible != true {
     return
   }
   var childrenRef: CFTypeRef?
@@ -23,7 +23,7 @@ private func dfs(
     for child in children {
       wg.enter()
       execQueue.async {
-        dfs(AxElement(child), childParents, wg, frame, execQueue, flags, onFound)
+        dfs(AxElement(child, parents: childParents), childParents, wg, execQueue, flags, onFound)
         wg.leave()
       }
     }
@@ -98,13 +98,8 @@ class FzFindListener: Listener {
 
   }
 
-  private func getAxFrame(_ screen: NSScreen) -> AxElement.Frame {
-    return AxElement.Frame(height: screen.frame.height, width: screen.frame.width)
-  }
-
   private func pollSysMenu() {
     guard let screen = NSScreen.main else { return }
-    let frame = getAxFrame(screen)
     let flags = getAxFlags()
     nonisolated(unsafe) var result: [AxElement] = []
     let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
@@ -135,7 +130,7 @@ class FzFindListener: Listener {
         var el: AXUIElement?
         let result = AXUIElementCopyElementAtPosition(sys, pos, menuBarY, &el)
         if result == .success, let axui = el as AXUIElement? {
-          dfs(AxElement(axui), [], wg, frame, self.execQueue, flags, onFound)
+          dfs(AxElement(axui), [], wg, self.execQueue, flags, onFound)
         }
         wg.leave()
       }
@@ -147,11 +142,10 @@ class FzFindListener: Listener {
   private func getVisibleEls() -> [AxElement] {
     let wg = DispatchGroup()
 
-    guard let app = NSWorkspace.shared.frontmostApplication, let screen = NSScreen.main else {
+    guard let app = NSWorkspace.shared.frontmostApplication else {
       print("Failed to get the app")
       return []
     }
-    let frame = getAxFrame(screen)
     let flags = getAxFlags()
 
     let pid = app.processIdentifier
@@ -170,27 +164,39 @@ class FzFindListener: Listener {
       queue.async(flags: .barrier) { result.append(e) }
     }
 
-    wg.enter()
-    execQueue.async {
-      var menuBar: AnyObject?
+    // wg.enter()
+    // execQueue.async {
+    //   var menuBar: AnyObject?
+    //
+    //   let result = AXUIElementCopyAttributeValue(
+    //     appEl, kAXMenuBarAttribute as CFString, &menuBar)
+    //
+    //   if result == .success, let menuBarElement = menuBar as! AXUIElement? {
+    //     dfs(AxElement(menuBarElement), [], wg, self.execQueue, flags, onFound)
+    //   }
+    //   wg.leave()
+    // }
 
-      let result = AXUIElementCopyAttributeValue(
-        appEl, kAXMenuBarAttribute as CFString, &menuBar)
+    return AxElement(mainWindow).findVisible()
+    // .sorted(by: { a, b in
+    //   guard let boundA = a.bound, let boundB = b.bound else { return false }
+    //   let xa = round(boundA.origin.x)
+    //   let xb = round(boundB.origin.x)
+    //   let ya = round(boundA.origin.y)
+    //   let yb = round(boundB.origin.y)
+    //   if ya == yb {
+    //     return xa < xb
+    //   }
+    //   return ya < yb
+    // })
 
-      if result == .success, let menuBarElement = menuBar as! AXUIElement? {
-        dfs(AxElement(menuBarElement), [], wg, frame, self.execQueue, flags, onFound)
-      }
-      wg.leave()
-    }
+    // wg.enter()
+    // execQueue.async {
+    //   wg.leave()
+    // }
+    // wg.wait()
 
-    wg.enter()
-    execQueue.async {
-      dfs(AxElement(mainWindow), [], wg, frame, self.execQueue, flags, onFound)
-      wg.leave()
-    }
-    wg.wait()
-
-    return result.sorted(by: { a, b in a.getSortableKey() < b.getSortableKey() })
+    // return result.sorted(by: { a, b in a.getSortableKey() < b.getSortableKey() })
   }
 
   private func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {

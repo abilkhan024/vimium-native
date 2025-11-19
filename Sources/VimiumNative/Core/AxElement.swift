@@ -11,17 +11,13 @@ final class AxElement: @unchecked Sendable {
   var rawPoint: CGPoint?
   // Point of the hint as opposed to element itself
   var point: CGPoint?
+  private var parents: [AxElement] = []
   private var searchTerm: String?
 
   struct Flags {
     let traverseHidden: Bool
     let hintText: Bool
     let roleBased: Bool
-  }
-
-  struct Frame {
-    let height: CGFloat
-    let width: CGFloat
   }
 
   private let hintableRoles: Set<String> = [
@@ -48,16 +44,21 @@ final class AxElement: @unchecked Sendable {
     "AXSwitch",
     "AXToolbar",
     "AXDisclosureTriangle",
+    "AXOutline",
+    "AXToolbar",
+    // "AXGroup",
   ]
-  private let ignoredActions = [
+
+  private let ignoredActions: Set<String> = [
     "AXShowMenu",
     "AXScrollToVisible",
     "AXShowDefaultUI",
     "AXShowAlternateUI",
   ]
 
-  init(_ raw: AXUIElement) {
+  init(_ raw: AXUIElement, parents: [AxElement] = []) {
     self.raw = raw
+    self.parents = parents
     self.setup()
   }
 
@@ -78,8 +79,7 @@ final class AxElement: @unchecked Sendable {
   private func setDimensions() {
     var position: CFTypeRef?
 
-    var result = AXUIElementCopyAttributeValue(
-      self.raw, kAXPositionAttribute as CFString, &position)
+    var result = AXUIElementCopyAttributeValue(self.raw, "AXPosition" as CFString, &position)
     guard result == .success else {
       return
     }
@@ -91,7 +91,7 @@ final class AxElement: @unchecked Sendable {
     }
 
     var value: AnyObject?
-    result = AXUIElementCopyAttributeValue(self.raw, kAXSizeAttribute as CFString, &value)
+    result = AXUIElementCopyAttributeValue(self.raw, "AXSize" as CFString, &value)
 
     guard result == .success, let sizeValue = value as! AXValue? else { return }
     var size: CGSize = .zero
@@ -109,13 +109,23 @@ final class AxElement: @unchecked Sendable {
     self.bound = CGRect(origin: point, size: size)
   }
 
+  private func getRectHidden(_ rect: CGRect) -> Bool {
+    return rect.height <= 1 || rect.width <= 1
+  }
+
+  private func getRectVisible(_ rect: CGRect) -> Bool {
+    return rect.width > 0 && rect.height > 0
+  }
+
   func getIsHintable(_ flags: Flags) -> Bool {
     guard let role = self.role, let bound = self.bound else {
       return false
     }
-    if bound.height <= 1 || bound.width <= 1 {
+
+    if getRectHidden(bound) {
       return false
     }
+
     if flags.hintText && role == "AXStaticText" {
       return true
     }
@@ -139,82 +149,53 @@ final class AxElement: @unchecked Sendable {
       return false
     }
 
-    let actions = names! as [AnyObject] as! [String]
-    var count = 0
-    for ignored in ignoredActions {
-      for action in actions {
-        if action == ignored {
-          count += 1
+    let actions = Set(names! as [AnyObject] as! [String])
+    let validActions = actions.subtracting(ignoredActions)
+    return !validActions.isEmpty
+  }
+
+  func getIsVisible(_ flags: AxElement.Flags) -> Bool? {
+    guard let bound = bound else { return nil }
+    let isVisible = getRectVisible(bound)
+    if !isVisible {
+      return false
+    }
+    self.setup()
+    var currentBound = bound
+    for parent in parents {
+      guard let parentBound = parent.bound else { return nil }
+      currentBound = currentBound.intersection(parentBound)
+    }
+
+    let visible = getRectVisible(currentBound)
+    if !visible {
+      self.setup()
+      let parentsRo = parents
+      DispatchQueue.main.async {
+        var currentBound = bound
+        for parent in parentsRo {
+          guard let parentBound = parent.bound else { return }
+          currentBound = currentBound.intersection(parentBound)
+          print("parent", parentBound, "current", currentBound)
         }
       }
     }
+    return visible
 
-    let hasActions = actions.count > count
-
-    return hasActions
-  }
-
-  // NOTE: Until next time can do dynamic refetch with new config params
-  // private var childRequested = false
-  // var children: [Child] = []
-  // struct Child {
-  //   let raw: AXUIElement
-  //   var wrapped: AxElement?
-  // }
-  // func getChildren() -> [Child] {
-  //   if childRequested {
-  //     return self.children
-  //   }
-  //   var childrenRef: CFTypeRef?
-  //   let childResult = AXUIElementCopyAttributeValue(
-  //     self.raw, kAXChildrenAttribute as CFString, &childrenRef)
-  //   self.childRequested = true
-  //   if childResult == .success, let children = childrenRef as? [AXUIElement] {
-  //     self.children = children.map { raw in Child(raw: raw, wrapped: nil) }
-  //   }
-  //   return self.children
-  // }
-
-  func getIsVisible(_ frame: Frame, _ parents: [AxElement], _ flags: AxElement.Flags) -> Bool? {
-    guard let role = self.role, let elRect = self.bound else { return nil }
-
-    if elRect.height == frame.height || elRect.width == frame.width {
-      return true
-    }
-
-    let parentRects = parents.map { el in
-      guard let rect = el.bound, el.role != "AXGroup" else {
-        let max = CGFloat(Float.greatestFiniteMagnitude)
-        let min = CGFloat(-Float.greatestFiniteMagnitude)
-        return (maxX: max, maxY: max, minX: min, minY: min)
-      }
-      return (maxX: rect.maxX, maxY: rect.maxY, minX: rect.minX, minY: rect.minY)
-    }
-
-    if role != "AXGroup" && role != "AXMenu" {
-      if let maxX = parentRects.map({ e in e.maxX }).min(), maxX - elRect.minX <= 1 {
-        return false
-      } else if let maxY = parentRects.map({ e in e.maxY }).min(), maxY - elRect.minY <= 1 {
-        return false
-      } else if let minX = parentRects.map({ e in e.minX }).max(), elRect.maxX - minX <= 1 {
-        return false
-      } else if let minY = parentRects.map({ e in e.minY }).max(), elRect.maxY - minY <= 1 {
-        return false
-      }
-    }
-
-    if !flags.traverseHidden {
-      return elRect.height > 1 && elRect.width > 1
-    }
-    return true
-  }
-
-  func getSortableKey() -> String {
-    guard let bound = self.bound, let role = self.role else {
-      print("Impossible case when visible doesn't have basic fields, but unsafe to throw")
-      return ""
-    }
-    return "\(bound.minX)\(bound.maxX)\(bound.minY)\(bound.maxY)\(role)\(getSearchTerm())"
+    // var currentBound = bound
+    // var skippedUntilEnd = false
+    // for parent in parents {
+    //   guard let parentBound = parent.bound else { return nil }
+    //   let nextBound = currentBound.intersection(parentBound)
+    //   if !getRectVisible(nextBound) {
+    //     skippedUntilEnd = true
+    //   } else {
+    //     currentBound = nextBound
+    //     skippedUntilEnd = false
+    //   }
+    // }
+    //
+    // return !skippedUntilEnd
   }
 
   func getSearchTerm() -> String {
@@ -253,5 +234,96 @@ final class AxElement: @unchecked Sendable {
       return nil
     }
     return stringValue
+  }
+
+  var children: [AXUIElement]? = nil
+
+  private func getChildren() -> [AXUIElement] {
+    var childrenRef: CFTypeRef?
+    if let children = self.children {
+      return children
+    }
+
+    let childResult = AXUIElementCopyAttributeValue(
+      raw, kAXChildrenAttribute as CFString, &childrenRef)
+    if childResult == .success, let children = childrenRef as? [AXUIElement] {
+      self.children = children
+    } else {
+      self.children = []
+    }
+    return self.children!
+  }
+
+  func _getIsVisible() -> Bool {
+    // make it fast for activity monitor
+    guard let bound = self.bound else { return false }
+    let visible = getRectVisible(bound)
+    if !visible {
+      return false
+    }
+
+    let mxEle = 1000
+    guard let parent = parents.last else { return true }
+    let children = parent.getChildren()
+    if children.count < mxEle {
+      return true
+    }
+    var current = bound
+    for parent in parents {
+      guard let parentBound = parent.bound else { return false }
+      current = current.intersection(parentBound)
+    }
+    return getRectVisible(current)
+  }
+
+  func _getIsHintable(el: AxElement) -> Bool {
+    guard let bound = el.bound, let role = el.role else {
+      return false
+    }
+
+    if role == "AXGroup" || role == "AXWindow" || role == "AXWebArea" {
+      return false
+    }
+
+    let isRectValid = !getRectHidden(bound)
+    if let window = parents.first, let parent = parents.last, let parentBound = parent.bound,
+      let windowBound = window.bound
+    {
+      return !getRectHidden(windowBound.intersection(bound))
+        /* && !getRectHidden(parentBound.intersection(bound)) */ && isRectValid
+    }
+
+    return isRectValid
+
+    // if role == "AXImage" || role == "AXCell" {
+    //   return true
+    // }
+    //
+    // if role == "AXWindow" || role == "AXScrollArea" {
+    //   return false
+    // }
+    //
+    // var names: CFArray?
+    // let error = AXUIElementCopyActionNames(self.raw, &names)
+    //
+    // if error != .success {
+    //   return false
+    // }
+    //
+    // let actions = Set(names! as [AnyObject] as! [String])
+    // let validActions = actions.subtracting(ignoredActions)
+    // return !validActions.isEmpty
+  }
+
+  func findVisible() -> [AxElement] {
+    if _getIsVisible() {
+      let childList = getChildren().flatMap({ child in
+        AxElement(child, parents: parents + [self]).findVisible()
+      })
+
+      let result = childList + [self]
+      return result.filter({ el in _getIsHintable(el: el) })
+    }
+    return []
   }
 }
