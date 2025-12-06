@@ -281,7 +281,7 @@ final class AxElement: @unchecked Sendable {
       return false
     }
 
-    if role == "AXGroup" || role == "AXWindow" || role == "AXWebArea" {
+    if role == "AXGroup" || role == "AXWindow" || role == "AXWebArea" || role == "AXOutline" {
       return false
     }
 
