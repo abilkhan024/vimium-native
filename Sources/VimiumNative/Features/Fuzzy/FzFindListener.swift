@@ -70,9 +70,10 @@ class FzFindListener: Listener {
       return
     }
     state.search = ""
-    self.hintsWindow.front().hideCursor().call()
+    InputSourceUtils.selectAbc()
+    hintsWindow.front().hideCursor().call()
     state.loading = true
-    self.appListener = AppListener(onEvent: self.onTyping)
+    appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(self.appListener!)
 
     DispatchQueue.main.async {
@@ -217,6 +218,7 @@ class FzFindListener: Listener {
   }
 
   private func onClose() {
+    InputSourceUtils.restoreCurrent()
     hintsWindow.hide().call()
     DispatchQueue.main.async {
       if let listener = self.appListener {
@@ -255,6 +257,7 @@ class FzFindListener: Listener {
   private lazy var keyToPrimeAction: [KeyMapping: (_: CGEvent) -> Bool] = [
     mappings.enterSearchMode: { _ in
       self.state.fzfMode = true
+      InputSourceUtils.restoreCurrent()
       self.state.search = ""
       return false
     },

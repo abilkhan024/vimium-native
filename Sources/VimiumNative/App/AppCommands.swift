@@ -6,49 +6,20 @@ final class AppCommands {
   static let shared = AppCommands()
 
   let appBin = CommandLine.arguments[0]
-  let daemonPath = "/tmp/vimium-native-daemon"
-  let daemonLogPath = "/tmp/vimium-native-daemon.log"
   let fs = FileManager.default
+  private let isForeground = CommandLine.arguments.count == 1
 
   enum Action: String {
     case daemon = "daemon"
     case kill = "kill"
     case listFonts = "list-fonts"
+    case listLayouts = "list-layouts"
   }
 
   private init() {}
 
-  func daemonize() {
-    let p = Process()
-    if !fs.fileExists(atPath: daemonLogPath) {
-      fs.createFile(atPath: daemonLogPath, contents: nil, attributes: nil)
-    }
-    p.standardOutput = FileHandle(forWritingAtPath: daemonLogPath)
-    p.standardError = FileHandle(forWritingAtPath: daemonLogPath)
-    p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    p.arguments = [appBin]
-    do {
-      try p.run()
-      try "\(p.processIdentifier)".write(toFile: daemonPath, atomically: true, encoding: .utf8)
-      print("Started in daemon mode, PID: \(p.processIdentifier)")
-    } catch let error {
-      print("Failed with error \(error), terminating...")
-      p.terminate()
-    }
-  }
-
-  func listFonts() {
-    for font in NSFontManager.shared.availableFontFamilies {
-      if let members = NSFontManager.shared.availableMembers(ofFontFamily: font) {
-        for member in members {
-          print(member[0])
-        }
-      }
-    }
-  }
-
   func getConfigNeeded() -> Bool {
-    if CommandLine.arguments.count == 1 {
+    if isForeground {
       return true
     }
     let command = CommandLine.arguments[1]
@@ -60,35 +31,93 @@ final class AppCommands {
     }
   }
 
-  func killRunning() -> Bool {
+  private func daemonize() {
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+    p.arguments = [appBin]
+    p.standardOutput = nil
+    p.standardError = nil
     do {
-      let content = try String(contentsOfFile: daemonPath, encoding: .utf8)
-      guard let pid = Int32(content) else {
-        print("Impossible case, daemon file doesn't contain valid pid")
-        exit(1)
-      }
-      try fs.removeItem(atPath: daemonLogPath)
-      kill(pid, SIGKILL)
-      return true
-    } catch {
-      return false
+      try p.run()
+      print("Started in daemon mode, PID: \(p.processIdentifier)")
+    } catch let error {
+      print("Failed with error \(error), terminating...")
+      p.terminate()
     }
   }
 
-  func runMenu() {
+  private func listFonts() {
+    for font in NSFontManager.shared.availableFontFamilies {
+      if let members = NSFontManager.shared.availableMembers(ofFontFamily: font) {
+        for member in members {
+          print(member[0])
+        }
+      }
+    }
+  }
+
+  private func listLayouts() {
+    for src in InputSourceUtils.getAllInputSources() {
+      print(InputSourceUtils.getInputSourceId(src: src))
+    }
+  }
+
+  private func exitAfter(_ after: () -> Void) {
+    after()
+    exit(0)
+  }
+
+  private func killRunning() -> Bool {
+    let currentPid = getpid()
+    guard let currentPath = ProcessUtils.getPath(pid: currentPid) else {
+      print("Impossible case: couldn't resolve exec file path")
+      return false
+    }
+    var killedSomePid = false
+    for pid in ProcessUtils.findProcesses(path: currentPath) {
+      if pid != currentPid {
+        killedSomePid = true
+        kill(pid, SIGKILL)
+      }
+    }
+
+    return killedSomePid
+  }
+
+  @objc private func editConfig() {
+    NSWorkspace.shared.open(URL(fileURLWithPath: AppOptions.shared.getConfigPath().path))
+  }
+
+  private func setupAndRun() {
     let app = NSApplication.shared
     app.setActivationPolicy(.accessory)
 
-    let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-    statusItem.button?.title = "𝑽𝑰"
+    if AppOptions.shared.showMenuItem {
+      let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+      statusItem.button?.title = "𝑽𝑰"
 
-    let menu = NSMenu()
-    menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApp.terminate), keyEquivalent: "q"))
-    statusItem.menu = menu
+      let menu = NSMenu()
+      let editConfgItem = NSMenuItem(
+        title: "Edit config",
+        action: #selector(editConfig),
+        keyEquivalent: ""
+      )
+      editConfgItem.target = self
+      menu.addItem(editConfgItem)
+
+      menu.addItem(
+        NSMenuItem(
+          title: "Quit",
+          action: #selector(NSApp.terminate),
+          keyEquivalent: ""
+        )
+      )
+      statusItem.menu = menu
+    }
     app.run()
   }
 
-  func showHelp(entered: String) {
+  private func showHelp(entered: String) {
     print(
       """
 
@@ -99,29 +128,31 @@ final class AppCommands {
             vimium daemon - Run in daemon mode
             vimium kill - Kill process running daemon mode
             vimium list-fonts - List avaible fonts on the system
+            vimium list-layouts - List avaible keyboard layouts on the system
             vimium - Run in foreground
 
       """)
   }
 
   func run() {
-    if CommandLine.arguments.count == 1 {
-      return runMenu()
+    if isForeground {
+      return setupAndRun()
     }
     let command = CommandLine.arguments[1]
     switch command {
     case Action.kill.rawValue:
-      if !killRunning() {
-        print("Didn't find any daemons")
+      exitAfter {
+        if !killRunning() { print("Didn't find any daemons") }
       }
-      exit(0)
+    case Action.listLayouts.rawValue:
+      exitAfter(listLayouts)
     case Action.listFonts.rawValue:
-      listFonts()
-      exit(0)
+      exitAfter(listFonts)
     case Action.daemon.rawValue:
-      let _ = killRunning()
-      daemonize()
-      exit(0)
+      exitAfter {
+        let _ = killRunning()
+        daemonize()
+      }
     default:
       showHelp(entered: command)
     }

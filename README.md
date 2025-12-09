@@ -2,10 +2,10 @@
 
 `VimiumNative` is a free and open-source MacOS app that allows you to use your
 mac without mouse in your day to day. It's some combination of other tools like
-`HomeRow`, `Shortcat`, `Mouseless`, `Warpd`. To some degree you may use this app
-as an alternative to any of them. If you find that some part lacks in
-functionality or performance it's higly encouraged to contribute to the project
-:)
+`HomeRow`, `Shortcat`, `Mouseless`, `Warpd`. To some degree you may use this
+app as an alternative to any of them. If you find that some part lacks in
+functionality or performance it's highly encouraged to contribute to the
+project :)
 
 P.S. More about contribution to the project could be found [here](#contriubtion)
 
@@ -64,17 +64,10 @@ brew tap abilkhan024/tools
 brew install vimium-native
 ```
 
-## Update
+## Upgrade via homebrew
 
 ```sh
-# Uninstall old version
-brew uninstall vimium-native
-
-# Fetch latest formula
-brew update
-
-# Reinstall latest build
-brew install vimium-native
+brew upgrade vimium-native
 ```
 
 
@@ -198,6 +191,14 @@ grid_font_size=14.0
 # between labels. You can enable this flag to jiggle once you start dragging
 jiggle_when_dragging=false
 
+# Indicates your preferred abc layout i.e. layout
+# that contains english letters, layout will be switched to it when selecting label
+# set to random value e.g. "nil" if you don't want the described behaviour
+abc_layout=com.apple.keylayout.ABC
+
+# Controls if menu item should be visible in the system tray: true | false
+show_menu_item=true
+
 # When developing and want to check performance
 debug_perf=false
 ```
@@ -244,5 +245,5 @@ rm -rf ./vimium-native-build
   contribute if that's an issue)_
 - Smooth scrolling _(feel free to contribute if that's an issue)_
 - AeroSpace support. Due to how aerospace manages workspaces, hinting behaviour
-  is unstable and unpleseant to work with, instead prefer some manager that
+  is unstable and unpleasant to work with, instead prefer some manager that
   won't change window sizes and their positions, e.g. custom hammerspon

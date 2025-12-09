@@ -125,18 +125,30 @@ final class AppOptions {
   // INFO: When developing and want to check performance
   var debugPerf = false
 
-  var keyMappings = (
-    showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),  // Validate has modifiers
-    showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),  // Validate has modifiers
-    startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),  // Validate has modifiers
-    close: KeyMapping(key: .esc),  // Validate not a hint char
+  // EXAMPLE:
+  //   abc_layout=com.apple.keylayout.ABC
+  // NOTE: Indicates your preferred abc layout i.e. layout
+  // that contains english letters, layout will be switched to it when selecting label
+  // set to "nil" if you don't want the described behaviour
+  var abcLayout = "com.apple.keylayout.ABC"
 
-    enterSearchMode: KeyMapping(key: .slash),  // Validate not a hint char
-    nextSearchOccurence: KeyMapping(key: .tab),  // Validate is non printable char
-    prevSearchOccurence: KeyMapping(key: .tab, modifiers: [.shift]),  // Validate is non printable char
-    selectOccurence: KeyMapping(key: .enter),  // Validate is non printable char
-    dropLastSearchChar: KeyMapping(key: .backspace),  // Validate is non printable char
-    toggleZIndex: KeyMapping(key: .semicolon),  // Validate not a hint char
+  // EXAMPLE:
+  //   show_menu_item=true
+  // NOTE: Controls if menu item should be set
+  var showMenuItem = true
+
+  var keyMappings = (
+    showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
+    showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),
+    startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),
+    close: KeyMapping(key: .esc),
+
+    enterSearchMode: KeyMapping(key: .slash),
+    nextSearchOccurence: KeyMapping(key: .tab),
+    prevSearchOccurence: KeyMapping(key: .tab, modifiers: [.shift]),
+    selectOccurence: KeyMapping(key: .enter),
+    dropLastSearchChar: KeyMapping(key: .backspace),
+    toggleZIndex: KeyMapping(key: .semicolon),
 
     mouseLeft: KeyMapping(key: .h),
     mouseDown: KeyMapping(key: .j),
@@ -219,12 +231,16 @@ final class AppOptions {
     return .system(size: AppOptions.shared.grid.fontSize, weight: .bold)
   }
 
-  private func proccessOptions(_ options: String) throws {
+  private func processOptions(_ options: String) throws {
     for option in options.components(separatedBy: .newlines) {
       if option.isEmpty || option.starts(with: "#") { continue }
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "show_menu_item":
+        try self.showMenuItem = parseBool(value: value, field: key)
+      case "abc_layout":
+        self.abcLayout = value
       case "letter_spacing":
         try self.letterSpacing = parseCgFloat(value: value, field: key)
       case "font_family":
@@ -411,7 +427,7 @@ final class AppOptions {
 
     do {
       let contents = try String(contentsOfFile: path, encoding: .utf8)
-      try proccessOptions(contents)
+      try processOptions(contents)
       print("Config parsed successfully")
     } catch let err as ParseError {
       print("Parse error in config file: \(err.message)")
@@ -422,20 +438,31 @@ final class AppOptions {
     }
   }
 
+  func getConfigPath() -> (path: String, message: String) {
+    if let configPath = ProcessInfo.processInfo.environment["VIMIUM_CONFIG_PATH"] {
+      return (
+        path: configPath,
+        message: "VIMIUM_CONFIG_PATH is set reading from custom path '\(configPath)'"
+      )
+    }
+    let filename = "vimium"
+    let fileManager = FileManager.default
+    let homeDirectoryURL = fileManager.homeDirectoryForCurrentUser
+    let configDirectoryURL = homeDirectoryURL.appendingPathComponent(".config", isDirectory: true)
+    let filePath = configDirectoryURL.appendingPathComponent(filename).path
+    return (
+      path: filePath,
+      message: "VIMIUM_CONFIG_PATH is NOT set reading from default path '\(filePath)'"
+    )
+  }
+
   private init() {
     if !AppCommands.shared.getConfigNeeded() {
       return
     }
-    if let configPath = ProcessInfo.processInfo.environment["VIMIUM_CONFIG_PATH"] {
-      print("VIMIUM_CONFIG_PATH is set reading from custom path '\(configPath)'")
-      readConfigFile(path: configPath)
-    } else {
-      let filename = "vimium"
-      let fileManager = FileManager.default
-      let homeDirectoryURL = fileManager.homeDirectoryForCurrentUser
-      let configDirectoryURL = homeDirectoryURL.appendingPathComponent(".config", isDirectory: true)
-      let filePath = configDirectoryURL.appendingPathComponent(filename).path
-      readConfigFile(path: filePath)
-    }
+    let (path, message) = getConfigPath()
+
+    print(message)
+    readConfigFile(path: path)
   }
 }

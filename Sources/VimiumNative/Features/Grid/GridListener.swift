@@ -159,7 +159,6 @@ class GridListener: Listener {
   ]
 
   func callback(_ event: CGEvent) {
-
     guard
       let bestActionKey = keyToPrimeAction.keys.max(by: { a, b in
         a.getScore(event: event) < b.getScore(event: event)
@@ -167,6 +166,7 @@ class GridListener: Listener {
       bestActionKey.matches(event: event),
       let bestAction = keyToPrimeAction[bestActionKey]
     else { return }
+    InputSourceUtils.selectAbc()
 
     if bestAction(event) {
       return
@@ -235,10 +235,10 @@ class GridListener: Listener {
       else { return }
       bestAction(event)
     }
-
   }
 
   private func onClose() {
+    InputSourceUtils.restoreCurrent()
     hintSelected = false
     isReopened = false
     mouseState.dragging = false
