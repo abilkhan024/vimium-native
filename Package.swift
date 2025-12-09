@@ -10,4 +10,5 @@ let package = Package(
   products: [.executable(name: appName, targets: [appName])],
   dependencies: [],
   targets: [.executableTarget(name: appName, dependencies: [])]
+  swiftLanguageModes: [.v6],
 )
