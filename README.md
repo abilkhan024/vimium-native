@@ -7,7 +7,7 @@ app as an alternative to any of them. If you find that some part lacks in
 functionality or performance it's highly encouraged to contribute to the
 project :)
 
-P.S. More about contribution to the project could be found [here](#contriubtion)
+P.S. More about contribution to the project could be found [here](/CONTRIBUTING.md)
 
 # Quick demo
 
