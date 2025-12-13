@@ -224,18 +224,8 @@ Shown for transparency of the build step, no need to run it
 
 ```sh
 # Build the application striping symbols & remove unnecessary files that expose symbols
-swift build --disable-prefetching -Xswiftc -gnone -c release --scratch-path ./vimium-native-build && \
-rm -rf ./vimium-native-build/arm64-apple-macosx/release/swift-version*.txt && \
-rm -rf ./vimium-native-build/arm64-apple-macosx/release/description.json && \
-rm -rf ./vimium-native-build/arm64-apple-macosx/release/ModuleCache && \
-rm -rf ./vimium-native-build/arm64-apple-macosx/release/Modules && \
-rm -rf ./vimium-native-build/arm64-apple-macosx/release/VimiumNative.build && \
-rm -rf ./vimium-native-build/arm64-apple-macosx/release/VimiumNative.build && \
-rm -rf ./vimium-native-build/release.yaml && \
-rm -rf ./vimium-native-build/build.db && \
-rm -rf ./vimium-native-build/release/*.json && \
-rm -rf ./vimium-native-build/release/*.product && \
-sh -c 'cd ./vimium-native-build/release && tar -czvf ../../../vimium-native-build.tar.gz ./VimiumNative' && \
+swift build --disable-prefetching -Xswiftc -gnone -c release --scratch-path ./vimium-native-build
+tar -czvf vimium-native-build.tar.gz --no-xattrs -C vimium-native-build/release VimiumNative
 rm -rf ./vimium-native-build
 ```
 
