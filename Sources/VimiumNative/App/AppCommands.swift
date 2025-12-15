@@ -1,6 +1,11 @@
 import Cocoa
 import Foundation
 
+private extension String {
+  static let daemonName = "vimium-native"
+  static let daemonPackageName = "io.github.abilkhan024.\(daemonName)"
+}
+
 @MainActor
 final class AppCommands {
   static let shared = AppCommands()
@@ -9,41 +14,32 @@ final class AppCommands {
   let fs = FileManager.default
   private let isForeground = CommandLine.arguments.count == 1
 
+  // TODO: move to cli assembly
+  private var daemon: IDaemon {
+    Daemon(name: .daemonName, packageName: .daemonPackageName)
+  }
+
   enum Action: String {
-    case daemon = "daemon"
-    case kill = "kill"
+    case startDaemon = "start-daemon"
+    case stopDaemon = "stop-daemon"
+    case restartDaemon = "restart-daemon"
     case listFonts = "list-fonts"
     case listLayouts = "list-layouts"
+
+    var needsConfig: Bool {
+      switch self {
+      case .startDaemon, .stopDaemon, .restartDaemon: true
+      default: false
+      }
+    }
   }
 
   private init() {}
 
   func getConfigNeeded() -> Bool {
-    if isForeground {
-      return true
-    }
+    if isForeground { return true }
     let command = CommandLine.arguments[1]
-    switch command {
-    case Action.daemon.rawValue:
-      return true
-    default:
-      return false
-    }
-  }
-
-  private func daemonize() {
-    let p = Process()
-    p.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-    p.arguments = [appBin]
-    p.standardOutput = nil
-    p.standardError = nil
-    do {
-      try p.run()
-      print("Started in daemon mode, PID: \(p.processIdentifier)")
-    } catch let error {
-      print("Failed with error \(error), terminating...")
-      p.terminate()
-    }
+    return Action(rawValue: command)?.needsConfig ?? false
   }
 
   private func listFonts() {
@@ -60,28 +56,6 @@ final class AppCommands {
     for src in InputSourceUtils.getAllInputSources() {
       print(InputSourceUtils.getInputSourceId(src: src))
     }
-  }
-
-  private func exitAfter(_ after: () -> Void) {
-    after()
-    exit(0)
-  }
-
-  private func killRunning() -> Bool {
-    let currentPid = getpid()
-    guard let currentPath = ProcessUtils.getPath(pid: currentPid) else {
-      print("Impossible case: couldn't resolve exec file path")
-      return false
-    }
-    var killedSomePid = false
-    for pid in ProcessUtils.findProcesses(path: currentPath) {
-      if pid != currentPid {
-        killedSomePid = true
-        kill(pid, SIGKILL)
-      }
-    }
-
-    return killedSomePid
   }
 
   @objc private func editConfig() {
@@ -125,7 +99,9 @@ final class AppCommands {
 
         May be you want to:
 
-            vimium daemon - Run in daemon mode
+            vimium start-daemon - Run as a persistent daemon
+            vimium stop-daemon - Stop running daemon
+            vimium restart-daemon - Restart daemon (if any)
             vimium kill - Kill process running daemon mode
             vimium list-fonts - List avaible fonts on the system
             vimium list-layouts - List avaible keyboard layouts on the system
@@ -135,26 +111,44 @@ final class AppCommands {
   }
 
   func run() {
-    if isForeground {
-      return setupAndRun()
-    }
+    if isForeground { return setupAndRun() }
+
     let command = CommandLine.arguments[1]
-    switch command {
-    case Action.kill.rawValue:
-      exitAfter {
-        if !killRunning() { print("Didn't find any daemons") }
+    guard let action = Action(rawValue: command)
+    else { return showHelp(entered: command) }
+
+    var status: Int32 = 0
+    defer { exit(status) }
+
+    switch action {
+    case .listLayouts:
+      listLayouts()
+    case .listFonts:
+      listFonts()
+    case .startDaemon:
+      do {
+        try daemon.start()
+      } catch {
+        status = 1
+        print("Unable to start daemon")
+        print(error.localizedDescription)
       }
-    case Action.listLayouts.rawValue:
-      exitAfter(listLayouts)
-    case Action.listFonts.rawValue:
-      exitAfter(listFonts)
-    case Action.daemon.rawValue:
-      exitAfter {
-        let _ = killRunning()
-        daemonize()
+    case .stopDaemon:
+      do {
+        try daemon.stop()
+      } catch {
+        status = 1
+        print("Unable to stop daemon")
+        print(error.localizedDescription)
       }
-    default:
-      showHelp(entered: command)
+    case .restartDaemon:
+      do {
+        try daemon.restart()
+      } catch {
+        status = 1
+        print("Unable to restart daemon")
+        print(error.localizedDescription)
+      }
     }
   }
 }

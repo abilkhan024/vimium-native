@@ -9,6 +9,12 @@ let package = Package(
   platforms: [.macOS(.v13)],
   products: [.executable(name: appName, targets: [appName])],
   dependencies: [],
-  targets: [.executableTarget(name: appName, dependencies: [])],
+  targets: [
+    .executableTarget(
+      name: appName,
+      dependencies: [],
+      resources: [.embedInCode("Resources/DaemonTemplate.plist")],
+    ),
+  ],
   swiftLanguageModes: [.v6],
 )
