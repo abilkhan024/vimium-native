@@ -85,6 +85,17 @@ class FzFindListener: Listener {
       self.hints = hints
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
+      // TODO REMOVE LATER WHEN NEW FINDER LOGIC WORKS CORRECTLY
+      // var ids: [Int] = []
+      // for i in self.state.texts.indices {
+      //   let text = self.state.texts[i]
+      //   if text.lowercased() == "ja" || text.lowercased() == "jr" {
+      //     ids.append(i)
+      //   }
+      // }
+      // for id in ids {
+      //   print(self.state.hints[id].debug())
+      // }
       self.state.loading = false
     }
   }
