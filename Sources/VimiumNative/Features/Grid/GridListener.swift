@@ -27,6 +27,7 @@ class GridListener: Listener {
   init() {
     hintsWindow.render(AnyView(GridHintsView())).call()
     mouseWindow.render(AnyView(GridMouseView())).call()
+    let _ = renderGridView()
   }
 
   func matches(_ event: CGEvent) -> Bool {
@@ -56,23 +57,12 @@ class GridListener: Listener {
       return false
     },
     mappings.showGrid: { _ in
-      let frame = self.hintsWindow.native().frame
-      self.hintsState.rows = AppOptions.shared.grid.rows
-      self.hintsState.cols = AppOptions.shared.grid.cols
-      self.hintsState.hintWidth = frame.width / CGFloat(self.hintsState.cols)
-      self.hintsState.hintHeight = frame.height / CGFloat(self.hintsState.rows)
-      self.hintsState.sequence = HintUtils.getLabels(
-        from: self.hintsState.rows * self.hintsState.cols)
-      self.hintsState.matchingCount = self.hintsState.sequence.count
-
-      if !self.hintSelected && self.appListener != nil {
+      if self.renderGridView() {
         return true
       }
-      self.hintSelected = false
       self.hintsWindow.front().hideCursor().call()
       return false
     },
-
   ]
 
   private lazy var keyToAction: [KeyMapping: (_: CGEvent) -> Void] = [
@@ -177,6 +167,23 @@ class GridListener: Listener {
     }
     appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(appListener!)
+  }
+
+  private func renderGridView() -> Bool {
+    let frame = self.hintsWindow.native().frame
+    self.hintsState.rows = AppOptions.shared.grid.rows
+    self.hintsState.cols = AppOptions.shared.grid.cols
+    self.hintsState.hintWidth = frame.width / CGFloat(self.hintsState.cols)
+    self.hintsState.hintHeight = frame.height / CGFloat(self.hintsState.rows)
+    self.hintsState.sequence = HintUtils.getLabels(
+      from: self.hintsState.rows * self.hintsState.cols)
+    self.hintsState.matchingCount = self.hintsState.sequence.count
+
+    if !self.hintSelected && self.appListener != nil {
+      return true
+    }
+    self.hintSelected = false
+    return false
   }
 
   private func onTyping(_ event: CGEvent) {
