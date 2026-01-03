@@ -34,6 +34,10 @@ class GridListener: Listener {
     return mappings.showGrid.matches(event: event) || mappings.startScroll.matches(event: event)
   }
 
+  func abort() {
+    onClose()
+  }
+
   private lazy var keyToPrimeAction: [KeyMapping: (_: CGEvent) -> Bool] = [
     mappings.startScroll: { _ in
       guard let app = NSWorkspace.shared.frontmostApplication else { return true }

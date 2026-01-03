@@ -6,6 +6,7 @@ import SwiftUI
 protocol Listener: AnyObject {
   func matches(_: CGEvent) -> Bool
   func callback(_: CGEvent)
+  func abort()
 }
 
 /// Static only because for some reason swift
@@ -42,7 +43,32 @@ class AppEventManager {
 
         for listener in AppEventManager.listeners.reversed() {
           if listener.matches(event) {
-            DispatchQueue.main.async { listener.callback(event) }
+            DispatchQueue.main.async {
+              listener.callback(event)
+
+              // NSWorkspace.shared.notificationCenter.addObserver(
+              //   forName: NSWorkspace.activeSpaceDidChangeNotification,
+              //   object: nil,
+              //   queue: .main
+              // ) { _ in
+              //   listener.abort()
+              // }
+              var mouseMonitor: Any? = nil
+
+              mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [
+                .mouseMoved, .scrollWheel,
+              ]) { event in
+                guard let cgEvent = event.cgEvent else { return }
+                let senderPID = cgEvent.getIntegerValueField(.eventSourceUnixProcessID)
+                guard senderPID == 0 else { return }
+                if let monitor = mouseMonitor {
+                  NSEvent.removeMonitor(monitor)
+                }
+                mouseMonitor = nil
+                listener.abort()
+              }
+            }
+
             return nil
           }
         }
@@ -84,4 +110,5 @@ class AppListener: Listener {
   func callback(_ event: CGEvent) {
     onEvent(event)
   }
+  func abort() {}
 }

@@ -13,4 +13,6 @@ class TemplateListener: Listener {
   func callback(_ event: CGEvent) {
 
   }
+
+  func abort() {}
 }

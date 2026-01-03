@@ -61,6 +61,10 @@ class FzFindListener: Listener {
     }
   }
 
+  func abort() {
+    onClose()
+  }
+
   func matches(_ event: CGEvent) -> Bool {
     return mappings.showHints.matches(event: event)
   }
