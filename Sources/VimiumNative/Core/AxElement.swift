@@ -2,7 +2,7 @@ import ApplicationServices
 import Cocoa
 
 // NOTE: IDK if it's safe but it looks safe where it's being used
-final class AxElement: @unchecked Sendable {
+final class AxElement {
   let raw: AXUIElement
 
   var role: String?
@@ -19,42 +19,6 @@ final class AxElement: @unchecked Sendable {
     let hintText: Bool
     let roleBased: Bool
   }
-
-  private let hintableRoles: Set<String> = [
-    "AXButton",
-    "AXComboBox",
-    "AXCheckBox",
-    "AXRadioButton",
-    "AXLink",
-    "AXImage",
-    "AXCell",
-    "AXMenuBarItem",
-    "AXMenuItem",
-    "AXMenuBar",
-    "AXPopUpButton",
-    "AXTextField",
-    "AXSlider",
-    "AXTabGroup",
-    "AXTabButton",
-    "AXTable",
-    "AXOutline",
-    "AXRow",
-    "AXColumn",
-    "AXScrollBar",
-    "AXSwitch",
-    "AXToolbar",
-    "AXDisclosureTriangle",
-    "AXOutline",
-    "AXToolbar",
-    // "AXGroup",
-  ]
-
-  private let ignoredActions: Set<String> = [
-    "AXShowMenu",
-    "AXScrollToVisible",
-    "AXShowDefaultUI",
-    "AXShowAlternateUI",
-  ]
 
   init(_ raw: AXUIElement, parents: [AxElement] = []) {
     self.raw = raw
@@ -115,87 +79,6 @@ final class AxElement: @unchecked Sendable {
 
   private func getRectVisible(_ rect: CGRect) -> Bool {
     return rect.width > 0 && rect.height > 0
-  }
-
-  func getIsHintable(_ flags: Flags) -> Bool {
-    guard let role = self.role, let bound = self.bound else {
-      return false
-    }
-
-    if getRectHidden(bound) {
-      return false
-    }
-
-    if flags.hintText && role == "AXStaticText" {
-      return true
-    }
-
-    if flags.roleBased {
-      return hintableRoles.contains(role)
-    }
-
-    if role == "AXImage" || role == "AXCell" {
-      return true
-    }
-
-    if role == "AXWindow" || role == "AXScrollArea" {
-      return false
-    }
-
-    var names: CFArray?
-    let error = AXUIElementCopyActionNames(self.raw, &names)
-
-    if error != .success {
-      return false
-    }
-
-    let actions = Set(names! as [AnyObject] as! [String])
-    let validActions = actions.subtracting(ignoredActions)
-    return !validActions.isEmpty
-  }
-
-  func getIsVisible(_ flags: AxElement.Flags) -> Bool? {
-    guard let bound = bound else { return nil }
-    let isVisible = getRectVisible(bound)
-    if !isVisible {
-      return false
-    }
-    self.setup()
-    var currentBound = bound
-    for parent in parents {
-      guard let parentBound = parent.bound else { return nil }
-      currentBound = currentBound.intersection(parentBound)
-    }
-
-    let visible = getRectVisible(currentBound)
-    if !visible {
-      self.setup()
-      let parentsRo = parents
-      DispatchQueue.main.async {
-        var currentBound = bound
-        for parent in parentsRo {
-          guard let parentBound = parent.bound else { return }
-          currentBound = currentBound.intersection(parentBound)
-          print("parent", parentBound, "current", currentBound)
-        }
-      }
-    }
-    return visible
-
-    // var currentBound = bound
-    // var skippedUntilEnd = false
-    // for parent in parents {
-    //   guard let parentBound = parent.bound else { return nil }
-    //   let nextBound = currentBound.intersection(parentBound)
-    //   if !getRectVisible(nextBound) {
-    //     skippedUntilEnd = true
-    //   } else {
-    //     currentBound = nextBound
-    //     skippedUntilEnd = false
-    //   }
-    // }
-    //
-    // return !skippedUntilEnd
   }
 
   func getSearchTerm() -> String {
