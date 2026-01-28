@@ -282,7 +282,8 @@ final class AxElement: @unchecked Sendable {
     }
 
     if role == "AXGroup" || role == "AXWindow" || role == "AXWebArea" || role == "AXOutline"
-      || role == "AXToolbar"
+      || role == "AXToolbar" || role == "AXTabGroup" || role == "AXRow"
+      || role == "AXScrollArea" || role == "AXRadioGroup"
     {
       return false
     }
@@ -318,6 +319,9 @@ final class AxElement: @unchecked Sendable {
   }
 
   func findVisible() -> [AxElement] {
+    if self.parents.contains(where: { parent in parent.raw == self.raw }) {
+      return []
+    }
     if _getIsVisible() {
       let childList = getChildren().flatMap({ child in
         AxElement(child, parents: parents + [self]).findVisible()
