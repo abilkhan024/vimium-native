@@ -1,39 +1,6 @@
 import CoreGraphics
 @preconcurrency import SwiftUI
 
-@Sendable
-private func dfs(
-  _ el: AxElement, _ parents: [AxElement], _ wg: DispatchGroup,
-  _ execQueue: DispatchQueue, _ flags: AxElement.Flags,
-  _ onFound: @escaping @Sendable (_: AxElement) -> Void
-) {
-  if parents.contains(where: { parent in parent.raw == el.raw }) {
-    return
-  }
-  let visible = el.getIsVisible(flags)
-  if visible != true {
-    return
-  }
-  var childrenRef: CFTypeRef?
-
-  let childParents = parents + [el]
-  let childResult = AXUIElementCopyAttributeValue(
-    el.raw, kAXChildrenAttribute as CFString, &childrenRef)
-  if childResult == .success, let children = childrenRef as? [AXUIElement] {
-    for child in children {
-      wg.enter()
-      execQueue.async {
-        dfs(AxElement(child, parents: childParents), childParents, wg, execQueue, flags, onFound)
-        wg.leave()
-      }
-    }
-  }
-
-  if el.getIsHintable(flags) {
-    onFound(el)
-  }
-}
-
 @MainActor
 class FzFindListener: Listener {
   private let hintsWindow = FzFindWindowManager.get(.hints)
@@ -93,7 +60,7 @@ class FzFindListener: Listener {
       // var ids: [Int] = []
       // for i in self.state.texts.indices {
       //   let text = self.state.texts[i]
-      //   if text.lowercased() == "ja" || text.lowercased() == "jr" {
+      //   if text.lowercased() == "lag" /* || text.lowercased() == "lu" */ {
       //     ids.append(i)
       //   }
       // }
@@ -114,54 +81,51 @@ class FzFindListener: Listener {
   }
 
   private func pollSysMenu() {
-    guard let screen = NSScreen.main else { return }
-    let flags = getAxFlags()
-    nonisolated(unsafe) var result: [AxElement] = []
-    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
-
-    let onFound: @Sendable (_: AxElement) -> Void = { e in
-      queue.async(flags: .barrier) { result.append(e) }
-    }
-
-    let maxX = screen.frame.maxX
-    let wg = DispatchGroup()
-
-    var min = maxX / 2
-    let max = maxX
-    let step = 11.0
-    let menuBarY: Float = 11.0
-
-    var positionsToCheck: [Float] = []
-    while min + step < max {
-      positionsToCheck.append(Float(min + step / 2))
-      min += step
-    }
-
-    let sys = AXUIElementCreateSystemWide()
-
-    for pos in positionsToCheck {
-      wg.enter()
-      execQueue.async {
-        var el: AXUIElement?
-        let result = AXUIElementCopyElementAtPosition(sys, pos, menuBarY, &el)
-        if result == .success, let axui = el as AXUIElement? {
-          dfs(AxElement(axui), [], wg, self.execQueue, flags, onFound)
-        }
-        wg.leave()
-      }
-    }
-    wg.wait()
-    self.systemMenuItems = result
+    // guard let screen = NSScreen.main else { return }
+    // TODO REWRITE as iterative
+    // nonisolated(unsafe) var result: [AxElement] = []
+    // let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
+    //
+    // let onFound: @Sendable (_: AxElement) -> Void = { e in
+    //   queue.async(flags: .barrier) { result.append(e) }
+    // }
+    //
+    // let maxX = screen.frame.maxX
+    // let wg = DispatchGroup()
+    //
+    // var min = maxX / 2
+    // let max = maxX
+    // let step = 11.0
+    // let menuBarY: Float = 11.0
+    //
+    // var positionsToCheck: [Float] = []
+    // while min + step < max {
+    //   positionsToCheck.append(Float(min + step / 2))
+    //   min += step
+    // }
+    //
+    // let sys = AXUIElementCreateSystemWide()
+    //
+    // for pos in positionsToCheck {
+    //   wg.enter()
+    //   execQueue.async {
+    //     var el: AXUIElement?
+    //     let result = AXUIElementCopyElementAtPosition(sys, pos, menuBarY, &el)
+    //     if result == .success, let axui = el as AXUIElement? {
+    //       dfs(AxElement(axui), [], wg, self.execQueue, flags, onFound)
+    //     }
+    //     wg.leave()
+    //   }
+    // }
+    // wg.wait()
+    self.systemMenuItems = []
   }
 
   private func getVisibleEls() -> [AxElement] {
-    let wg = DispatchGroup()
-
     guard let app = NSWorkspace.shared.frontmostApplication else {
       print("Failed to get the app")
       return []
     }
-    let flags = getAxFlags()
 
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
@@ -173,45 +137,7 @@ class FzFindListener: Listener {
 
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
 
-    nonisolated(unsafe) var result = systemMenuItems
-    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
-    let onFound: @Sendable (_: AxElement) -> Void = { e in
-      queue.async(flags: .barrier) { result.append(e) }
-    }
-
-    // wg.enter()
-    // execQueue.async {
-    //   var menuBar: AnyObject?
-    //
-    //   let result = AXUIElementCopyAttributeValue(
-    //     appEl, kAXMenuBarAttribute as CFString, &menuBar)
-    //
-    //   if result == .success, let menuBarElement = menuBar as! AXUIElement? {
-    //     dfs(AxElement(menuBarElement), [], wg, self.execQueue, flags, onFound)
-    //   }
-    //   wg.leave()
-    // }
-
     return AxElement(mainWindow).findVisible()
-    // .sorted(by: { a, b in
-    //   guard let boundA = a.bound, let boundB = b.bound else { return false }
-    //   let xa = round(boundA.origin.x)
-    //   let xb = round(boundB.origin.x)
-    //   let ya = round(boundA.origin.y)
-    //   let yb = round(boundB.origin.y)
-    //   if ya == yb {
-    //     return xa < xb
-    //   }
-    //   return ya < yb
-    // })
-
-    // wg.enter()
-    // execQueue.async {
-    //   wg.leave()
-    // }
-    // wg.wait()
-
-    // return result.sorted(by: { a, b in a.getSortableKey() < b.getSortableKey() })
   }
 
   private func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {
