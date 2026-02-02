@@ -2,12 +2,13 @@
 
 `VimiumNative` is a free and open-source MacOS app that allows you to use your
 mac without mouse in your day to day. It's some combination of other tools like
-`HomeRow`, `Shortcat`, `Mouseless`, `Warpd`. To some degree you may use this
-app as an alternative to any of them. If you find that some part lacks in
-functionality or performance it's highly encouraged to contribute to the
-project :)
+`HomeRow`, `Shortcat`, `Mouseless`, `Warpd`. To some degree you may use this app
+as an alternative to any of them. If you find that some part lacks in
+functionality or performance it's highly encouraged to contribute to the project
+:)
 
-P.S. More about contribution to the project could be found [here](#contriubtion)
+P.S. More about contribution to the project could be found
+[here](./CONTRIBUTING.md)
 
 # Quick demo
 
@@ -69,7 +70,6 @@ brew install vimium-native
 ```sh
 brew upgrade vimium-native
 ```
-
 
 ## Uninstall
 
