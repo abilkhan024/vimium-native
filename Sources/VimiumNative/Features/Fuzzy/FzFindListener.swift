@@ -278,6 +278,12 @@ class FzFindListener: Listener {
       if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count,
         let point = self.hints[idx].point
       {
+        EventUtils.move(point)
+        // faster-more-precise-dfs tbd may be add focus regions for each element or prevent overlapping elements
+        // if event.flags.contains(Modifier.command.cgEventFlag) {
+        //   self.hints[idx].click()
+        // }
+
         EventUtils.leftClick(point, event.flags)
         onClose()
       }
