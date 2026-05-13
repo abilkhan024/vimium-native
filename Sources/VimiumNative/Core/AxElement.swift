@@ -2,6 +2,7 @@
 import Cocoa
 
 enum AxRole: String {
+  // MARK: - User's Input Roles
   case Link = "AXLink"
   case Group = "AXGroup"
   case Window = "AXWindow"
@@ -13,6 +14,75 @@ enum AxRole: String {
   case ScrollArea = "AXScrollArea"
   case RadioGroup = "AXRadioGroup"
   case StaticText = "AXStaticText"
+  case RadioButton = "AXRadioButton"
+
+  // MARK: - Root & Layout Roles
+  case Application = "AXApplication"
+  case SystemWide = "AXSystemWide"
+  case Desktop = "AXDesktop"
+  case Pane = "AXPane"
+  case LayoutArea = "AXLayoutArea"
+  case LayoutItem = "AXLayoutItem"
+  case SplitGroup = "AXSplitGroup"
+  case Splitter = "AXSplitter"
+
+  // MARK: - Interactive Controls
+  case Button = "AXButton"
+  case CheckBox = "AXCheckBox"
+  case PopUpButton = "AXPopUpButton"
+  case MenuButton = "AXMenuButton"
+  case ColorWell = "AXColorWell"
+  case Slider = "AXSlider"
+  case Incrementor = "AXIncrementor"
+  case ComboBox = "AXComboBox"
+
+  // MARK: - Text & Fields
+  case TextField = "AXTextField"
+  case TextArea = "AXTextArea"
+  case Heading = "AXHeading"
+
+  // MARK: - Data Views & Containers
+  case List = "AXList"
+  case Grid = "AXGrid"
+  case Table = "AXTable"
+  case Column = "AXColumn"
+  case Cell = "AXCell"
+  case Browser = "AXBrowser"
+
+  // MARK: - Menus & Overlays
+  case MenuBar = "AXMenuBar"
+  case MenuBarItem = "AXMenuBarItem"
+  case Menu = "AXMenu"
+  case MenuItem = "AXMenuItem"
+  case Drawer = "AXDrawer"
+  case Sheet = "AXSheet"
+  case Popover = "AXPopover"
+
+  // MARK: - Indicators & Status
+  case ValueIndicator = "AXValueIndicator"
+  case BusyIndicator = "AXBusyIndicator"
+  case ProgressIndicator = "AXProgressIndicator"
+  case RelevanceIndicator = "AXRelevanceIndicator"
+  case LevelIndicator = "AXLevelIndicator"
+
+  // MARK: - Date & Time
+  case DateField = "AXDateField"
+  case TimeField = "AXTimeField"
+  case DateTimeArea = "AXDateTimeArea"
+
+  // MARK: - System Components
+  case ScrollBar = "AXScrollBar"
+  case DisclosureTriangle = "AXDisclosureTriangle"
+  case HelpTag = "AXHelpTag"
+  case Matte = "AXMatte"
+  case GrowArea = "AXGrowArea"
+  case Handle = "AXHandle"
+  case Image = "AXImage"
+  case SheetPage = "AXPage"
+  case Ruler = "AXRuler"
+  case RulerMarker = "AXRulerMarker"
+  case DockItem = "AXDockItem"
+  case Unknown = "AXUnknown"
 }
 
 // NOTE: IDK if it's safe but it looks safe where it's being used
@@ -83,53 +153,12 @@ final class AxElement {
     self.size = size
     self.rawPoint = point
     let horizontalPoint = point.y + size.height / 2
-    // if let rect = getFirstLineRect(for: self.raw), self.role == "AXText" || self.role == "AXLink" {
-    //   print(debug(), rect)
-    //   horizontalPoint = point.y + rect.height / 2
-    // }
     self.point = CGPointMake(
       point.x + size.width / 2,
       horizontalPoint
     )
     self.bound = CGRect(origin: point, size: size)
   }
-
-  // private func getFirstLineRect(for element: AXUIElement) -> CGRect? {
-  //   var lineRangeValue: CFTypeRef?
-  //
-  //   // 1. Get the range for line index 0
-  //   let rangeResult = AXUIElementCopyParameterizedAttributeValue(
-  //     element,
-  //     kAXRangeForLineParameterizedAttribute as CFString,
-  //     0 as CFNumber,
-  //     &lineRangeValue
-  //   )
-  //
-  //   // Check success and that the pointer isn't nil
-  //   guard rangeResult == .success, let axRange = lineRangeValue else {
-  //     return nil
-  //   }
-  //
-  //   // 2. Use the range to get bounds
-  //   var boundsValue: CFTypeRef?
-  //   let boundsResult = AXUIElementCopyParameterizedAttributeValue(
-  //     element,
-  //     kAXBoundsForRangeParameterizedAttribute as CFString,
-  //     axRange,  // Pass the CFTypeRef directly
-  //     &boundsValue
-  //   )
-  //
-  //   // Use 'as' because the optionality is handled by the 'let'
-  //   if boundsResult == .success, let axBounds = boundsValue {
-  //     var rect = CGRect.zero
-  //     // Extract the rect using the AXValue helper
-  //     if AXValueGetValue(axBounds as! AXValue, .cgRect, &rect) {
-  //       return rect
-  //     }
-  //   }
-  //
-  //   return nil
-  // }
 
   private func getRectHidden(_ rect: CGRect) -> Bool {
     return rect.height <= 1 || rect.width <= 1
@@ -227,6 +256,9 @@ final class AxElement {
 
   func _getIsHintable(el: AxElement) -> Bool {
     guard let bound = el.bound, let role = el.role else {
+      if el.role == nil {
+        print(debug())
+      }
       return false
     }
 
