@@ -337,6 +337,7 @@ final class AxElement {
     print(actions)
   }
 
+  // faster-more-precise-dfs if element at the position AXUIElementCopyElementAtPosition is not the same element then mark as false
   func getIsHintable(el: AxElement) -> Bool {
     guard let bound = el.bound, let role = el.role else {
       return false
