@@ -60,12 +60,18 @@ class FzFindListener: Listener {
       // var ids: [Int] = []
       // for i in self.state.texts.indices {
       //   let text = self.state.texts[i]
-      //   if text.lowercased() == "lag" /* || text.lowercased() == "lu" */ {
+      //   if text.starts(with: "jai") || text.starts(with: "jaf") {
       //     ids.append(i)
       //   }
       // }
       // for id in ids {
-      //   print(self.state.hints[id].debug())
+      //   if id < self.state.hints.count {
+      //     let el = self.state.hints[id]
+      //     print("el:", el.debug(), el.bound)
+      //     for parent in el.parents {
+      //       print("parent:", parent.debug())
+      //     }
+      //   }
       // }
       self.state.loading = false
     }

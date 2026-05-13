@@ -95,10 +95,70 @@ final class AxElement {
   var rawPoint: CGPoint?
   // Point of the hint as opposed to element itself
   var point: CGPoint?
-  private var parents: [AxElement] = []
+  var parents: [AxElement] = []
   private var searchTerm: String?
 
-  private let SMALL_NODE_THRESHOLD = 1000
+  private static let UNHINTABLE_ROLES: [AxRole] = [
+    // MARK: - Structural & Containers
+    .Group,
+    .Window,
+    .WebArea,
+    .Outline,
+    .Toolbar,
+    .TabGroup,
+    .Row,
+    .ScrollArea,
+    .RadioGroup,
+    // .StaticText,
+
+    // MARK: - Root & Layout Roles
+    .Application,
+    .SystemWide,
+    .Desktop,
+    .Pane,
+    .LayoutArea,
+    .LayoutItem,
+    .SplitGroup,
+
+    // MARK: - Text & Typography
+    .Heading,
+
+    // MARK: - Data Views & Containers
+    .List,
+    .Grid,
+    .Table,
+    .Column,
+    .Browser,
+
+    // MARK: - Menus & Overlays
+    .MenuBar,
+    .Menu,
+    .Drawer,
+    .Sheet,
+    .Popover,
+
+    // MARK: - Indicators & Status
+    .ValueIndicator,
+    .BusyIndicator,
+    .ProgressIndicator,
+    .RelevanceIndicator,
+    .LevelIndicator,
+
+    // MARK: - System Components
+    .ScrollBar,
+    .HelpTag,
+    .Matte,
+    .GrowArea,
+    .Image,
+    .SheetPage,
+    .Ruler,
+    .Unknown,
+
+    // MARK: - Interactive Controls
+    .Slider,
+  ]
+
+  private static let SMALL_NODE_THRESHOLD = 1000
 
   struct Flags {
     let traverseHidden: Bool
@@ -194,6 +254,17 @@ final class AxElement {
     return self.searchTerm!
   }
 
+  func getValidButton() -> Bool {
+    let attributes = [
+      getAttributeString(kAXTitleAttribute),
+      getAttributeString(kAXValueAttribute),
+      getAttributeString(kAXDescriptionAttribute),
+      getAttributeString(kAXLabelValueAttribute),
+    ]
+    let idx = attributes.firstIndex(where: { val in val != nil })
+    return idx != nil
+  }
+
   func debug() -> String {
     let components = [
       getAttributeString(kAXRoleAttribute) ?? "",
@@ -212,7 +283,7 @@ final class AxElement {
     guard result == .success, let stringValue = value as? String else {
       return nil
     }
-    return stringValue
+    return "\(attribute): \(stringValue)"
   }
 
   var children: [AXUIElement]? = nil
@@ -233,7 +304,7 @@ final class AxElement {
     return self.children!
   }
 
-  func _getIsVisible() -> Bool {
+  func getIsVisible() -> Bool {
     // make it fast for activity monitor
     guard let bound = self.bound else { return false }
     let visible = getRectVisible(bound)
@@ -243,7 +314,7 @@ final class AxElement {
 
     guard let parent = parents.last else { return true }
     let children = parent.getChildren()
-    if children.count <= SMALL_NODE_THRESHOLD {
+    if children.count <= AxElement.SMALL_NODE_THRESHOLD {
       return true
     }
     var current = bound
@@ -254,66 +325,55 @@ final class AxElement {
     return getRectVisible(current)
   }
 
-  func _getIsHintable(el: AxElement) -> Bool {
+  func printActions() {
+    var names: CFArray?
+    let error = AXUIElementCopyActionNames(self.raw, &names)
+
+    if error != .success {
+      return
+    }
+
+    let actions = Set(names! as [AnyObject] as! [String])
+    print(actions)
+  }
+
+  func getIsHintable(el: AxElement) -> Bool {
     guard let bound = el.bound, let role = el.role else {
-      if el.role == nil {
-        print(debug())
-      }
       return false
     }
 
-    if role == .Group || role == .Window || role == .WebArea || role == .Outline
-      || role == .Toolbar || role == .TabGroup || role == .Row
-      || role == .ScrollArea || role == .RadioGroup
+    // if role == .Button && !getValidButton() {
+    //   return false
+    // }
+
+    if AxElement.UNHINTABLE_ROLES.contains(role) {
+      return false
+    }
+    let isRectValid = !getRectHidden(bound)
+    if !isRectValid {
+      return false
+    }
+
+    if let directParent = parents.last,
+      role == .StaticText && directParent.getIsHintable(el: directParent)
     {
       return false
     }
 
-    // if let value = el.getAttributeString(kAXValueAttribute),
-    //   value.trimmingCharacters(in: .whitespaces).isEmpty && role == .StaticText
-    // {
-    //   return false
-    // }
-
-    let isRectValid = !getRectHidden(bound)
-    // if let window = parents.first, let windowBound = window.bound {
-    //   return !getRectHidden(windowBound.intersection(bound))
-    //     /* && !getRectHidden(parentBound.intersection(bound)) */ && isRectValid
-    // }
-
-    return isRectValid
-
-    // if role == "AXImage" || role == "AXCell" {
-    //   return true
-    // }
-    //
-    // if role == "AXWindow" || role == "AXScrollArea" {
-    //   return false
-    // }
-    //
-    // var names: CFArray?
-    // let error = AXUIElementCopyActionNames(self.raw, &names)
-    //
-    // if error != .success {
-    //   return false
-    // }
-    //
-    // let actions = Set(names! as [AnyObject] as! [String])
-    // let validActions = actions.subtracting(ignoredActions)
-    // return !validActions.isEmpty
+    return true
   }
 
   func findVisible() -> [AxElement] {
     if self.parents.contains(where: { parent in parent.raw == self.raw }) {
       return []
     }
-    if _getIsVisible() {
+    if getIsVisible() {
       let childList = getChildren().flatMap({ child in
         AxElement(child, parents: parents + [self]).findVisible()
       })
 
       let result = childList + [self]
-      return result.filter({ el in _getIsHintable(el: el) })
+      return result.filter({ el in getIsHintable(el: el) })
     }
     return []
   }
