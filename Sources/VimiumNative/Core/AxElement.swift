@@ -87,6 +87,8 @@ enum AxRole: String {
 
 final class AxElement {
   let raw: AXUIElement
+  lazy var isVisible: Bool = { getIsVisible() }()
+  lazy var isHintable: Bool = { getIsHintable() }()
 
   var role: AxRole?
   var size: CGSize?
@@ -300,7 +302,7 @@ final class AxElement {
     return self.children!
   }
 
-  func getIsVisible() -> Bool {
+  private func getIsVisible() -> Bool {
     guard let bound = self.bound else { return false }
     let visible = getRectVisible(bound)
     if !visible {
@@ -337,7 +339,7 @@ final class AxElement {
 
   // faster-more-precise-dfs if element at the position AXUIElementCopyElementAtPosition is not the same element then mark as false
   // faster-more-precise-dfs don't make hint labels sequenetial instead assign in random order to prevent focused overflow for leetcode
-  func getIsHintable() -> Bool {
+  private func getIsHintable() -> Bool {
     guard let bound = bound, let role = role else {
       return false
     }
@@ -369,13 +371,13 @@ final class AxElement {
 
   func findVisible() -> [AxElement] {
     guard !self.parents.contains(where: { parent in parent.raw == self.raw }) else { return [] }
-    guard getIsVisible() else { return [] }
+    guard isVisible else { return [] }
 
     let childList = getChildren().flatMap({ child in
       AxElement(child, parents: parents + [self]).findVisible()
     })
 
     let result = childList + [self]
-    return result.filter({ el in el.getIsHintable() })
+    return result.filter({ el in el.isHintable })
   }
 }
