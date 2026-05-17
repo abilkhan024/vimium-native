@@ -85,6 +85,7 @@ enum AxRole: String {
   case Unknown = "AXUnknown"
 }
 
+@MainActor
 final class AxElement {
   let raw: AXUIElement
   lazy var isVisible: Bool = { getIsVisible() }()
@@ -157,14 +158,6 @@ final class AxElement {
     // MARK: - Interactive Controls
     .Slider,
   ]
-
-  private static let SMALL_NODE_THRESHOLD = 1000
-
-  struct Flags {
-    let traverseHidden: Bool
-    let hintText: Bool
-    let roleBased: Bool
-  }
 
   init(_ raw: AXUIElement, parents: [AxElement] = []) {
     self.raw = raw
@@ -311,7 +304,7 @@ final class AxElement {
 
     guard let parent = parents.last else { return true }
     let children = parent.getChildren()
-    if children.count <= AxElement.SMALL_NODE_THRESHOLD {
+    if children.count <= AppOptions.shared.smallNodeThreshold {
       return true
     }
     var current = bound
@@ -362,7 +355,7 @@ final class AxElement {
       return false
     }
 
-    if role == .StaticText {
+    if role == .StaticText && AppOptions.shared.hintText {
       return hasContent()
     }
 

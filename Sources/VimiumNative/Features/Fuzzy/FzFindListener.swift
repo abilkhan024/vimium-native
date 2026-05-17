@@ -48,11 +48,7 @@ class FzFindListener: Listener {
     AppEventManager.add(self.appListener!)
 
     DispatchQueue.main.async {
-      let start = DispatchTime.now().uptimeNanoseconds
       let hints = self.getVisibleEls()
-      if AppOptions.shared.debugPerf {
-        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
-      }
       self.hints = hints
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
@@ -72,15 +68,6 @@ class FzFindListener: Listener {
       // }
       self.state.loading = false
     }
-  }
-
-  private func getAxFlags() -> AxElement.Flags {
-    return AxElement.Flags(
-      traverseHidden: AppOptions.shared.traverseHidden,
-      hintText: AppOptions.shared.hintText,
-      roleBased: AppOptions.shared.selection == .role
-    )
-
   }
 
   private func pollSysMenu() {

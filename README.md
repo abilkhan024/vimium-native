@@ -153,10 +153,6 @@ scroll_size_vertical_page=100
 # Cursor move size
 cursor_step=5
 
-# Traverse the children of the node if the node has dimensions of <=1
-# Generally advised against, because slows down performance
-traverse_hidden=false
-
 # Interval for system menu poll in seconds, 0 doesn't poll system menu
 # therefore won't show it. Min value that won't degrade performance is 10
 system_menu_poll=10
@@ -172,14 +168,6 @@ hint_chars=jklhgasdfweruio
 # but it may slow down rendering, sometimes significantly.
 # P.s HomeRow doesn't do it, that's why it's false by default
 hint_text=false
-
-# How to determine if the element is hintable.
-# Possible values: action | role
-# ----------------------------------------------------------------
-# role: Replicates HomeRow behavior, generally faster but ignores some elements
-# action: Shows if element provides non-ignored action
-# ----------------------------------------------------------------
-hint_selection=role
 
 # Rows and cols dimensions when using grid mode.
 # Change is a trade-off between precision and performance
@@ -199,8 +187,14 @@ abc_layout=com.apple.keylayout.ABC
 # Controls if menu item should be visible in the system tray: true | false
 show_menu_item=true
 
-# When developing and want to check performance
-debug_perf=false
+# Determines the children count for node to be "small", if the node
+# is considered direct children are evaluated on element bound visibility
+# otherwise it stops traversal if intersection with all parents results
+# invisible bound. Meant as a trade off to make it fast for apps with good
+# accessibilities, and good enough for apps with inconsistent tree structure.
+# Adjust based on your preference. Smaller == faster (potentially missed hints),
+# higher == slower more elements to discover
+small_node_threshold=750
 ```
 
 # Building from source
