@@ -49,7 +49,7 @@ class FzFindListener: Listener {
 
     DispatchQueue.main.async {
       let start = DispatchTime.now().uptimeNanoseconds
-      let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 16)
+      let hints = self.getVisibleEls()
       if AppOptions.shared.debugPerf {
         print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
       }
@@ -60,7 +60,7 @@ class FzFindListener: Listener {
       // var ids: [Int] = []
       // for i in self.state.texts.indices {
       //   let text = self.state.texts[i]
-      //   if text.starts(with: "jai") || text.starts(with: "jaf") {
+      //   if text.starts(with: "khi") {
       //     ids.append(i)
       //   }
       // }
@@ -68,9 +68,6 @@ class FzFindListener: Listener {
       //   if id < self.state.hints.count {
       //     let el = self.state.hints[id]
       //     print("el:", el.debug(), el.bound)
-      //     for parent in el.parents {
-      //       print("parent:", parent.debug())
-      //     }
       //   }
       // }
       self.state.loading = false
@@ -144,30 +141,6 @@ class FzFindListener: Listener {
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
 
     return AxElement(mainWindow).findVisible()
-  }
-
-  private func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {
-    var uniqueEls: [AxElement] = []
-
-    for el in els {
-      guard let point = el.point else { continue }
-      var isDuplicate = false
-      for unique in uniqueEls {
-        let existingPoint = unique.point
-        let dx = point.x - existingPoint!.x
-        let dy = point.y - existingPoint!.y
-        let distanceSquared = dx * dx + dy * dy
-        if distanceSquared <= radius * radius {
-          isDuplicate = true
-          break
-        }
-      }
-      if !isDuplicate {
-        uniqueEls.append(el)
-      }
-    }
-
-    return uniqueEls
   }
 
   private func onClose() {

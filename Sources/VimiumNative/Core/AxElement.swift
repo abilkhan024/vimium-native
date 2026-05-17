@@ -1,4 +1,4 @@
-@preconcurrency import ApplicationServices
+import ApplicationServices
 import Cocoa
 
 enum AxRole: String {
@@ -85,7 +85,6 @@ enum AxRole: String {
   case Unknown = "AXUnknown"
 }
 
-// NOTE: IDK if it's safe but it looks safe where it's being used
 final class AxElement {
   let raw: AXUIElement
 
@@ -109,7 +108,6 @@ final class AxElement {
     .Row,
     .ScrollArea,
     .RadioGroup,
-    // .StaticText,
 
     // MARK: - Root & Layout Roles
     .Application,
@@ -149,7 +147,7 @@ final class AxElement {
     .HelpTag,
     .Matte,
     .GrowArea,
-    .Image,
+    // .Image, may be under the flag faster-more-precise-dfs
     .SheetPage,
     .Ruler,
     .Unknown,
@@ -254,15 +252,13 @@ final class AxElement {
     return self.searchTerm!
   }
 
-  func getValidButton() -> Bool {
-    let attributes = [
+  func getAttrs() -> [String?] {
+    return [
       getAttributeString(kAXTitleAttribute),
       getAttributeString(kAXValueAttribute),
       getAttributeString(kAXDescriptionAttribute),
       getAttributeString(kAXLabelValueAttribute),
     ]
-    let idx = attributes.firstIndex(where: { val in val != nil })
-    return idx != nil
   }
 
   func debug() -> String {
@@ -283,7 +279,7 @@ final class AxElement {
     guard result == .success, let stringValue = value as? String else {
       return nil
     }
-    return "\(attribute): \(stringValue)"
+    return stringValue
   }
 
   var children: [AXUIElement]? = nil
@@ -305,7 +301,6 @@ final class AxElement {
   }
 
   func getIsVisible() -> Bool {
-    // make it fast for activity monitor
     guard let bound = self.bound else { return false }
     let visible = getRectVisible(bound)
     if !visible {
@@ -325,57 +320,62 @@ final class AxElement {
     return getRectVisible(current)
   }
 
-  func printActions() {
-    var names: CFArray?
-    let error = AXUIElementCopyActionNames(self.raw, &names)
+  func normailzeWindowBound(bound: CGRect) -> CGRect {
+    return CGRect(
+      x: bound.minX, y: bound.minY, width: bound.width,
+      height: bound.height - NSStatusBar.system.thickness)
+  }
 
-    if error != .success {
-      return
-    }
-
-    let actions = Set(names! as [AnyObject] as! [String])
-    print(actions)
+  func hasContent() -> Bool {
+    let hasSomeContent = getAttrs().contains(where: { val in
+      guard let str = val else { return false }
+      let alphaNumeric = str.filter({ char in char.isLetter || char.isHexDigit })
+      return !alphaNumeric.isEmpty
+    })
+    return hasSomeContent
   }
 
   // faster-more-precise-dfs if element at the position AXUIElementCopyElementAtPosition is not the same element then mark as false
-  func getIsHintable(el: AxElement) -> Bool {
-    guard let bound = el.bound, let role = el.role else {
+  // faster-more-precise-dfs don't make hint labels sequenetial instead assign in random order to prevent focused overflow for leetcode
+  func getIsHintable() -> Bool {
+    guard let bound = bound, let role = role else {
       return false
     }
 
-    // if role == .Button && !getValidButton() {
-    //   return false
-    // }
+    if getRectHidden(bound) {
+      return false
+    }
 
     if AxElement.UNHINTABLE_ROLES.contains(role) {
       return false
     }
-    let isRectValid = !getRectHidden(bound)
-    if !isRectValid {
+
+    if let window = parents.first, let windowBound = window.bound,
+      getRectHidden(normailzeWindowBound(bound: windowBound).intersection(bound))
+    {
       return false
     }
 
-    if let directParent = parents.last,
-      role == .StaticText && directParent.getIsHintable(el: directParent)
-    {
+    if role == .StaticText && parents.contains(where: { el in el.getIsHintable() }) {
       return false
+    }
+
+    if role == .StaticText {
+      return hasContent()
     }
 
     return true
   }
 
   func findVisible() -> [AxElement] {
-    if self.parents.contains(where: { parent in parent.raw == self.raw }) {
-      return []
-    }
-    if getIsVisible() {
-      let childList = getChildren().flatMap({ child in
-        AxElement(child, parents: parents + [self]).findVisible()
-      })
+    guard !self.parents.contains(where: { parent in parent.raw == self.raw }) else { return [] }
+    guard getIsVisible() else { return [] }
 
-      let result = childList + [self]
-      return result.filter({ el in getIsHintable(el: el) })
-    }
-    return []
+    let childList = getChildren().flatMap({ child in
+      AxElement(child, parents: parents + [self]).findVisible()
+    })
+
+    let result = childList + [self]
+    return result.filter({ el in el.getIsHintable() })
   }
 }
