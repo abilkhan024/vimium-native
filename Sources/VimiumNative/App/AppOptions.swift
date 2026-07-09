@@ -60,16 +60,16 @@ final class AppOptions {
   var cursorStep = 5
 
   // EXAMPLE:
-  //   system_menu_poll=0
-  // INFO: Interval for system menu poll in seconds 0 doesn't poll system menu
-  // therefore won't show it, min value that won't degrade performance is 10
-  var systemMenuPoll = 10
-
-  // EXAMPLE:
   //   color_bg=#ff0000
   //   color_fg=#ff0000
   // INFO: Colors used for hints
   var colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
+
+  // EXAMPLE:
+  //   hint_border=#00000000
+  // INFO: Color that is used to show borders of element rect defaults to .3 of color_bg
+  // set as #00000000 if want to remove it from the view
+  var hintBorder: Color = .clear
 
   // EXAMPLE:
   //   hint_chars=jklhgasdfweruio
@@ -120,6 +120,13 @@ final class AppOptions {
   // Adjust based on your preference. Smaller == faster (potentially missed hints),
   // higher == slower more elements to discover
   var smallNodeThreshold = 750
+
+  // EXAMPLE:
+  //   ax_click=false
+  // NOTE: Click the element using AXUIElementPerformAction works amazing if
+  // the button is under some overlay, but ignores currently held modifiers
+  // (like shift, cmd, etc.) so opening link in new tab would be impossible
+  var axClick = true
 
   var keyMappings = (
     showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
@@ -279,10 +286,10 @@ final class AppOptions {
         try self.grid.fontSize = parseCgFloat(value: value, field: key)
       case "hint_text":
         try self.hintText = parseBool(value: value, field: key)
-      case "system_menu_poll":
-        guard let val = Int(value), val == 0 || val >= 10
-        else { throw ParseError(message: "system_menu_poll must be 0 or greater than 10") }
-        self.systemMenuPoll = val
+      case "ax_click":
+        try self.axClick = parseBool(value: value, field: key)
+      case "hint_border":
+        try self.hintBorder = parseColor(from: value, field: key)
       case "key_show_hints":
         try self.keyMappings.showHints = parseKeyMapping(
           from: value, field: key, flags: [.requireModifiers])
@@ -401,6 +408,10 @@ final class AppOptions {
     do {
       let contents = try String(contentsOfFile: path, encoding: .utf8)
       try processOptions(contents)
+      if self.hintBorder == .clear {
+        self.hintBorder = self.colors.bg.opacity(0.3)
+      }
+
       print("Config parsed successfully")
     } catch let err as ParseError {
       print("Parse error in config file: \(err.message)")

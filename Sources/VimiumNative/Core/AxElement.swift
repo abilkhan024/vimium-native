@@ -1,4 +1,5 @@
 import ApplicationServices
+import Carbon.HIToolbox
 import Cocoa
 
 enum AxRole: String {
@@ -107,10 +108,8 @@ final class AxElement {
     .WebArea,
     .Outline,
     .Toolbar,
-    .TabGroup,
     .Row,
     .ScrollArea,
-    .RadioGroup,
 
     // MARK: - Root & Layout Roles
     .Application,
@@ -150,7 +149,6 @@ final class AxElement {
     .HelpTag,
     .Matte,
     .GrowArea,
-    // .Image, may be under the flag faster-more-precise-dfs
     .SheetPage,
     .Ruler,
     .Unknown,
@@ -221,6 +219,19 @@ final class AxElement {
     return rect.width > 0 && rect.height > 0
   }
 
+  func canPress() -> Bool {
+    var actionNames: CFArray?
+    let result = AXUIElementCopyActionNames(raw, &actionNames)
+
+    guard result == .success, let actions = actionNames as? [String] else {
+      return false
+    }
+
+    return actions.contains(kAXPressAction)
+  }
+
+  // TODO: Suboptimal approach, because it doesn't account for event.flags
+  // so no cmd+click, for now cmd behaviour is not
   func click() {
     let result = AXUIElementPerformAction(self.raw, kAXPressAction as CFString)
     if result == .success {
@@ -279,7 +290,7 @@ final class AxElement {
 
   var children: [AXUIElement]? = nil
 
-  private func getChildren() -> [AXUIElement] {
+  func getChildren() -> [AXUIElement] {
     var childrenRef: CFTypeRef?
     if let children = self.children {
       return children
@@ -295,7 +306,7 @@ final class AxElement {
     return self.children!
   }
 
-  private func getIsVisible() -> Bool {
+  func getIsVisible() -> Bool {
     guard let bound = self.bound else { return false }
     let visible = getRectVisible(bound)
     if !visible {
@@ -330,9 +341,9 @@ final class AxElement {
     return hasSomeContent
   }
 
-  // faster-more-precise-dfs if element at the position AXUIElementCopyElementAtPosition is not the same element then mark as false
-  // faster-more-precise-dfs don't make hint labels sequenetial instead assign in random order to prevent focused overflow for leetcode
-  private func getIsHintable() -> Bool {
+  // TODO: If element at the position AXUIElementCopyElementAtPosition is not the same element then mark as false
+  // POTENTIAL: don't make hint labels sequential instead assign in random order to prevent focused overflow for leetcode (maybe via config flag)
+  func getIsHintable() -> Bool {
     guard let bound = bound, let role = role else {
       return false
     }
@@ -345,12 +356,6 @@ final class AxElement {
       return false
     }
 
-    if let window = parents.first, let windowBound = window.bound,
-      getRectHidden(normailzeWindowBound(bound: windowBound).intersection(bound))
-    {
-      return false
-    }
-
     if role == .StaticText && parents.contains(where: { el in el.getIsHintable() }) {
       return false
     }
@@ -359,7 +364,23 @@ final class AxElement {
       return hasContent()
     }
 
-    return true
+    let bounds =
+      parents.enumerated()
+      .map({ (index, el) -> CGRect? in
+        guard let bound = el.bound else { return nil }
+        if index == 0 {
+          return normailzeWindowBound(bound: bound)
+        }
+        return bound
+      })
+      .filter({ bound in bound != nil })
+
+    var current = bound
+    for parentBound in bounds {
+      current = current.intersection(parentBound!)
+    }
+
+    return getRectVisible(current)
   }
 
   func findVisible() -> [AxElement] {
@@ -372,5 +393,30 @@ final class AxElement {
 
     let result = childList + [self]
     return result.filter({ el in el.isHintable })
+  }
+
+  func isAncestorOf(rawElement: AXUIElement) -> Bool {
+    let cachedChildren = getChildren()
+    if cachedChildren.contains(where: { el in CFEqual(el, rawElement) }) {
+      return true
+    }
+
+    var current: AXUIElement? = rawElement
+    while let currentElement = current {
+      var parentRef: CFTypeRef?
+      let result = AXUIElementCopyAttributeValue(
+        currentElement, kAXParentAttribute as CFString, &parentRef)
+
+      if result == .success, let parent = parentRef {
+        let parentAX = parent as! AXUIElement
+        if CFEqual(parentAX, self.raw) {
+          return true
+        }
+        current = parentAX
+      } else {
+        break
+      }
+    }
+    return false
   }
 }

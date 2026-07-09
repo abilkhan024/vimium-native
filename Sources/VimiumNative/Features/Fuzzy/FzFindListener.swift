@@ -14,18 +14,6 @@ class FzFindListener: Listener {
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
-    if AppOptions.shared.systemMenuPoll != 0 {
-      Timer.scheduledTimer(
-        withTimeInterval: Double(AppOptions.shared.systemMenuPoll), repeats: true,
-        block: { _ in
-          DispatchQueue.main.async {
-            self.pollSysMenu()
-          }
-        })
-      DispatchQueue.main.async {
-        self.pollSysMenu()
-      }
-    }
   }
 
   func abort() {
@@ -48,75 +36,22 @@ class FzFindListener: Listener {
     AppEventManager.add(self.appListener!)
 
     DispatchQueue.main.async {
-      let hints = self.getVisibleEls()
-      self.hints = hints
+      var visit = Set<Int>()
+      let hints = self.getFrontMostClickableHints()
+      self.hints = hints.filter({ el in
+        guard let point = el.point else { return false }
+        if visit.contains(point.hashValue) { return false }
+        visit.insert(point.hashValue)
+        return true
+      })
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
-      // TODO REMOVE LATER WHEN NEW FINDER LOGIC WORKS CORRECTLY
-      // var ids: [Int] = []
-      // for i in self.state.texts.indices {
-      //   let text = self.state.texts[i]
-      //   if text.starts(with: "khi") {
-      //     ids.append(i)
-      //   }
-      // }
-      // for id in ids {
-      //   if id < self.state.hints.count {
-      //     let el = self.state.hints[id]
-      //     print("el:", el.debug(), el.bound)
-      //   }
-      // }
       self.state.loading = false
     }
   }
 
-  private func pollSysMenu() {
-    // guard let screen = NSScreen.main else { return }
-    // TODO REWRITE as iterative
-    // nonisolated(unsafe) var result: [AxElement] = []
-    // let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
-    //
-    // let onFound: @Sendable (_: AxElement) -> Void = { e in
-    //   queue.async(flags: .barrier) { result.append(e) }
-    // }
-    //
-    // let maxX = screen.frame.maxX
-    // let wg = DispatchGroup()
-    //
-    // var min = maxX / 2
-    // let max = maxX
-    // let step = 11.0
-    // let menuBarY: Float = 11.0
-    //
-    // var positionsToCheck: [Float] = []
-    // while min + step < max {
-    //   positionsToCheck.append(Float(min + step / 2))
-    //   min += step
-    // }
-    //
-    // let sys = AXUIElementCreateSystemWide()
-    //
-    // for pos in positionsToCheck {
-    //   wg.enter()
-    //   execQueue.async {
-    //     var el: AXUIElement?
-    //     let result = AXUIElementCopyElementAtPosition(sys, pos, menuBarY, &el)
-    //     if result == .success, let axui = el as AXUIElement? {
-    //       dfs(AxElement(axui), [], wg, self.execQueue, flags, onFound)
-    //     }
-    //     wg.leave()
-    //   }
-    // }
-    // wg.wait()
-    self.systemMenuItems = []
-  }
-
-  private func getVisibleEls() -> [AxElement] {
-    guard let app = NSWorkspace.shared.frontmostApplication else {
-      print("Failed to get the app")
-      return []
-    }
-
+  private func getFrontMostClickableHints() -> [AxElement] {
+    guard let app = NSWorkspace.shared.frontmostApplication else { return [] }
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
 
@@ -245,12 +180,11 @@ class FzFindListener: Listener {
         let point = self.hints[idx].point
       {
         EventUtils.move(point)
-        // faster-more-precise-dfs tbd may be add focus regions for each element or prevent overlapping elements
-        // if event.flags.contains(Modifier.command.cgEventFlag) {
-        //   self.hints[idx].click()
-        // }
-
-        EventUtils.leftClick(point, event.flags)
+        if self.hints[idx].canPress() && AppOptions.shared.axClick {
+          self.hints[idx].click()
+        } else {
+          EventUtils.leftClick(point, event.flags)
+        }
         onClose()
       }
       return

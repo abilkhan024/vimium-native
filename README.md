@@ -153,10 +153,6 @@ scroll_size_vertical_page=100
 # Cursor move size
 cursor_step=5
 
-# Interval for system menu poll in seconds, 0 doesn't poll system menu
-# therefore won't show it. Min value that won't degrade performance is 10
-system_menu_poll=10
-
 # Colors used for hints
 color_bg=#e6d278
 color_fg=#000000
