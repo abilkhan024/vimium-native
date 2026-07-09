@@ -35,6 +35,19 @@ struct FzFindHintsView: View {
           let fzfMatch = state.fzfSelectedIdx == i ? 1.0 : 0.5
           let opacity = isMatch ? state.fzfMode ? fzfMatch : nonFzfMatch : 0.001
           let zIndex = state.zIndexInverted ? Double(points.count) - Double(i) : Double(i)
+
+          if let bound = state.hints[i].bound {
+            RoundedRectangle(cornerRadius: 10)
+              .stroke(AppOptions.shared.hintBorder, lineWidth: 1)
+              .frame(width: bound.width, height: bound.height)
+              .position(
+                x: bound.midX - geo.frame(in: .global).minX,
+                y: bound.midY - geo.frame(in: .global).minY
+              )
+              .zIndex(zIndex - 0.5)
+              .opacity(opacity)
+          }
+
           Tooltip(
             height: hintOptions.hintSize, position: points[i],
             backgroundColor: AppOptions.shared.colors.bg

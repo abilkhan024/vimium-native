@@ -1,39 +1,7 @@
 import CoreGraphics
 @preconcurrency import SwiftUI
 
-@Sendable
-private func dfs(
-  _ el: AxElement, _ parents: [AxElement], _ wg: DispatchGroup, _ frame: AxElement.Frame,
-  _ execQueue: DispatchQueue, _ flags: AxElement.Flags,
-  _ onFound: @escaping @Sendable (_: AxElement) -> Void
-) {
-  let visible = el.getIsVisible(frame, parents, flags)
-  if parents.contains(where: { parent in parent.raw == el.raw }) {
-    return
-  }
-  if visible == false {
-    return
-  }
-  var childrenRef: CFTypeRef?
-
-  let childParents = parents + [el]
-  let childResult = AXUIElementCopyAttributeValue(
-    el.raw, kAXChildrenAttribute as CFString, &childrenRef)
-  if childResult == .success, let children = childrenRef as? [AXUIElement] {
-    for child in children {
-      wg.enter()
-      execQueue.async {
-        dfs(AxElement(child), childParents, wg, frame, execQueue, flags, onFound)
-        wg.leave()
-      }
-    }
-  }
-
-  if el.getIsHintable(flags) {
-    onFound(el)
-  }
-}
-
+// TODO: Add feature that selects/copies text for text elements
 @MainActor
 class FzFindListener: Listener {
   private let hintsWindow = FzFindWindowManager.get(.hints)
@@ -47,18 +15,10 @@ class FzFindListener: Listener {
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
-    if AppOptions.shared.systemMenuPoll != 0 {
-      Timer.scheduledTimer(
-        withTimeInterval: Double(AppOptions.shared.systemMenuPoll), repeats: true,
-        block: { _ in
-          DispatchQueue.main.async {
-            self.pollSysMenu()
-          }
-        })
-      DispatchQueue.main.async {
-        self.pollSysMenu()
-      }
-    }
+  }
+
+  func abort() {
+    onClose()
   }
 
   func matches(_ event: CGEvent) -> Bool {
@@ -77,83 +37,22 @@ class FzFindListener: Listener {
     AppEventManager.add(self.appListener!)
 
     DispatchQueue.main.async {
-      let start = DispatchTime.now().uptimeNanoseconds
-      let hints = self.removeDuplicates(from: self.getVisibleEls(), within: 16)
-      if AppOptions.shared.debugPerf {
-        print("Generated in \(DispatchTime.now().uptimeNanoseconds - start) for \(hints.count)")
-      }
-      self.hints = hints
+      var visit = Set<Int>()
+      let hints = self.getFrontMostClickableHints()
+      self.hints = hints.filter({ el in
+        guard let point = el.point else { return false }
+        if visit.contains(point.hashValue) { return false }
+        visit.insert(point.hashValue)
+        return true
+      })
       self.state.hints = self.hints
       self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
       self.state.loading = false
     }
   }
 
-  private func getAxFlags() -> AxElement.Flags {
-    return AxElement.Flags(
-      traverseHidden: AppOptions.shared.traverseHidden,
-      hintText: AppOptions.shared.hintText,
-      roleBased: AppOptions.shared.selection == .role
-    )
-
-  }
-
-  private func getAxFrame(_ screen: NSScreen) -> AxElement.Frame {
-    return AxElement.Frame(height: screen.frame.height, width: screen.frame.width)
-  }
-
-  private func pollSysMenu() {
-    guard let screen = NSScreen.main else { return }
-    let frame = getAxFrame(screen)
-    let flags = getAxFlags()
-    nonisolated(unsafe) var result: [AxElement] = []
-    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
-
-    let onFound: @Sendable (_: AxElement) -> Void = { e in
-      queue.async(flags: .barrier) { result.append(e) }
-    }
-
-    let maxX = screen.frame.maxX
-    let wg = DispatchGroup()
-
-    var min = maxX / 2
-    let max = maxX
-    let step = 11.0
-    let menuBarY: Float = 11.0
-
-    var positionsToCheck: [Float] = []
-    while min + step < max {
-      positionsToCheck.append(Float(min + step / 2))
-      min += step
-    }
-
-    let sys = AXUIElementCreateSystemWide()
-
-    for pos in positionsToCheck {
-      wg.enter()
-      execQueue.async {
-        var el: AXUIElement?
-        let result = AXUIElementCopyElementAtPosition(sys, pos, menuBarY, &el)
-        if result == .success, let axui = el as AXUIElement? {
-          dfs(AxElement(axui), [], wg, frame, self.execQueue, flags, onFound)
-        }
-        wg.leave()
-      }
-    }
-    wg.wait()
-    self.systemMenuItems = result
-  }
-
-  private func getVisibleEls() -> [AxElement] {
-    let wg = DispatchGroup()
-
-    guard let app = NSWorkspace.shared.frontmostApplication, let screen = NSScreen.main else {
-      print("Failed to get the app")
-      return []
-    }
-    let frame = getAxFrame(screen)
-    let flags = getAxFlags()
-
+  private func getFrontMostClickableHints() -> [AxElement] {
+    guard let app = NSWorkspace.shared.frontmostApplication else { return [] }
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
 
@@ -164,57 +63,7 @@ class FzFindListener: Listener {
 
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
 
-    nonisolated(unsafe) var result = systemMenuItems
-    let queue = DispatchQueue(label: "result-append-queue", attributes: .concurrent)
-    let onFound: @Sendable (_: AxElement) -> Void = { e in
-      queue.async(flags: .barrier) { result.append(e) }
-    }
-
-    wg.enter()
-    execQueue.async {
-      var menuBar: AnyObject?
-
-      let result = AXUIElementCopyAttributeValue(
-        appEl, kAXMenuBarAttribute as CFString, &menuBar)
-
-      if result == .success, let menuBarElement = menuBar as! AXUIElement? {
-        dfs(AxElement(menuBarElement), [], wg, frame, self.execQueue, flags, onFound)
-      }
-      wg.leave()
-    }
-
-    wg.enter()
-    execQueue.async {
-      dfs(AxElement(mainWindow), [], wg, frame, self.execQueue, flags, onFound)
-      wg.leave()
-    }
-    wg.wait()
-
-    return result.sorted(by: { a, b in a.getSortableKey() < b.getSortableKey() })
-  }
-
-  private func removeDuplicates(from els: [AxElement], within radius: Double) -> [AxElement] {
-    var uniqueEls: [AxElement] = []
-
-    for el in els {
-      guard let point = el.point else { continue }
-      var isDuplicate = false
-      for unique in uniqueEls {
-        let existingPoint = unique.point
-        let dx = point.x - existingPoint!.x
-        let dy = point.y - existingPoint!.y
-        let distanceSquared = dx * dx + dy * dy
-        if distanceSquared <= radius * radius {
-          isDuplicate = true
-          break
-        }
-      }
-      if !isDuplicate {
-        uniqueEls.append(el)
-      }
-    }
-
-    return uniqueEls
+    return AxElement(mainWindow).findVisible()
   }
 
   private func onClose() {
@@ -331,7 +180,12 @@ class FzFindListener: Listener {
       if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count,
         let point = self.hints[idx].point
       {
-        EventUtils.leftClick(point, event.flags)
+        EventUtils.move(point)
+        if self.hints[idx].canPress() && AppOptions.shared.axClick {
+          self.hints[idx].click()
+        } else {
+          EventUtils.leftClick(point, event.flags)
+        }
         onClose()
       }
       return

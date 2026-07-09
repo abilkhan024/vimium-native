@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 
 // TODO: May be allow changing them on the fly via some shortcut
-// INFO: Defaulting to HomeRow alternative
 @MainActor
 final class AppOptions {
   static let shared = AppOptions()
@@ -61,22 +60,16 @@ final class AppOptions {
   var cursorStep = 5
 
   // EXAMPLE:
-  //   traverse_hidden=true
-  // INFO: Traverse the children of the node if the node has dimensions of <=1
-  // Generally advised against, because slows down perf
-  var traverseHidden = false
-
-  // EXAMPLE:
-  //   system_menu_poll=0
-  // INFO: Interval for system menu poll in seconds 0 doesn't poll system menu
-  // therefore won't show it, min value that won't degrade performance is 10
-  var systemMenuPoll = 10
-
-  // EXAMPLE:
   //   color_bg=#ff0000
   //   color_fg=#ff0000
   // INFO: Colors used for hints
   var colors = (bg: Color(red: 230 / 255, green: 210 / 255, blue: 120 / 255), fg: Color.black)
+
+  // EXAMPLE:
+  //   hint_border=#00000000
+  // INFO: Color that is used to show borders of element rect defaults to .3 of color_bg
+  // set as #00000000 if want to remove it from the view
+  var hintBorder: Color = .clear
 
   // EXAMPLE:
   //   hint_chars=jklhgasdfweruio
@@ -89,21 +82,6 @@ final class AppOptions {
   // text nodes, but it may slowdown rendering, sometimes significantly
   // P.s HomeRow doesn't do it, that's why it's false by default
   var hintText = false
-
-  // EXAMPLE:
-  //   hint_selection=action
-  //   # Possible values action|role
-  // ----------------------------------------------------------------
-  // INFO: How to determine if the element is hintable, .role replicates
-  // homerow behaviour, and generally faster, but ignores some elements
-  // ----------------------------------------------------------------
-  // action: Shows if element provides non ignored action
-  // role: Shows if element role is in hard-coded array
-  var selection = SelectionType.role
-  enum SelectionType {
-    case role
-    case action
-  }
 
   // EXAMPLE:
   //   grid_rows=42
@@ -121,11 +99,6 @@ final class AppOptions {
   var jiggleWhenDragging = false
 
   // EXAMPLE:
-  //   debug_perf=true
-  // INFO: When developing and want to check performance
-  var debugPerf = false
-
-  // EXAMPLE:
   //   abc_layout=com.apple.keylayout.ABC
   // NOTE: Indicates your preferred abc layout i.e. layout
   // that contains english letters, layout will be switched to it when selecting label
@@ -136,6 +109,24 @@ final class AppOptions {
   //   show_menu_item=true
   // NOTE: Controls if menu item should be set
   var showMenuItem = true
+
+  // EXAMPLE:
+  //   small_node_threshold=750
+  // NOTE: Determines the children count for node to be "small", if the node
+  // is considered direct children are evaluated on element bound visibility
+  // otherwise it stops traversal if intersection with all parents results
+  // invisible bound. Meant as a trade off to make it fast for apps with good
+  // accessibilities, and good enough for apps with inconsistent tree structure.
+  // Adjust based on your preference. Smaller == faster (potentially missed hints),
+  // higher == slower more elements to discover
+  var smallNodeThreshold = 750
+
+  // EXAMPLE:
+  //   ax_click=false
+  // NOTE: Click the element using AXUIElementPerformAction works amazing if
+  // the button is under some overlay, but ignores currently held modifiers
+  // (like shift, cmd, etc.) so opening link in new tab would be impossible
+  var axClick = true
 
   var keyMappings = (
     showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
@@ -237,6 +228,8 @@ final class AppOptions {
       let optionKeyVal = option.components(separatedBy: "=")
       guard let key = optionKeyVal.first, let value = optionKeyVal.last else { continue }
       switch key {
+      case "small_node_threshold":
+        try self.smallNodeThreshold = parseInt(value: value, field: key)
       case "show_menu_item":
         try self.showMenuItem = parseBool(value: value, field: key)
       case "abc_layout":
@@ -291,25 +284,12 @@ final class AppOptions {
         try self.grid.cols = parseInt(value: value, field: key)
       case "grid_font_size":
         try self.grid.fontSize = parseCgFloat(value: value, field: key)
-      case "hint_selection":
-        switch value {
-        case "role":
-          self.selection = SelectionType.role
-        case "action":
-          self.selection = SelectionType.action
-        default:
-          throw ParseError(message: "hint_selection must be either action or role")
-        }
-      case "debug_perf":
-        try self.debugPerf = parseBool(value: value, field: key)
       case "hint_text":
         try self.hintText = parseBool(value: value, field: key)
-      case "system_menu_poll":
-        guard let val = Int(value), val == 0 || val >= 10
-        else { throw ParseError(message: "system_menu_poll must be 0 or greater than 10") }
-        self.systemMenuPoll = val
-      case "traverse_hidden":
-        try self.traverseHidden = parseBool(value: value, field: key)
+      case "ax_click":
+        try self.axClick = parseBool(value: value, field: key)
+      case "hint_border":
+        try self.hintBorder = parseColor(from: value, field: key)
       case "key_show_hints":
         try self.keyMappings.showHints = parseKeyMapping(
           from: value, field: key, flags: [.requireModifiers])
@@ -428,6 +408,10 @@ final class AppOptions {
     do {
       let contents = try String(contentsOfFile: path, encoding: .utf8)
       try processOptions(contents)
+      if self.hintBorder == .clear {
+        self.hintBorder = self.colors.bg.opacity(0.3)
+      }
+
       print("Config parsed successfully")
     } catch let err as ParseError {
       print("Parse error in config file: \(err.message)")
