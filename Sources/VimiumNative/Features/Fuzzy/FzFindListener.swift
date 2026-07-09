@@ -1,6 +1,7 @@
 import CoreGraphics
 @preconcurrency import SwiftUI
 
+// TODO: Add feature that selects/copies text for text elements
 @MainActor
 class FzFindListener: Listener {
   private let hintsWindow = FzFindWindowManager.get(.hints)
