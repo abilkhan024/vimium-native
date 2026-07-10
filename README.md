@@ -191,6 +191,16 @@ show_menu_item=true
 # Adjust based on your preference. Smaller == faster (potentially missed hints),
 # higher == slower more elements to discover
 small_node_threshold=750
+
+# Click the element using AXUIElementPerformAction works amazing if
+# the button is under some overlay, but ignores currently held modifiers
+# (like shift, cmd, etc.) so opening link in new tab would be impossible
+# true by deafult set to false if you want physical click
+ax_click=false
+
+# INFO: Color that is used to show borders of element rect defaults to .3 of color_bg
+# set as #00000000 if want to remove it from the view
+hint_border=#00000000
 ```
 
 # Building from source
