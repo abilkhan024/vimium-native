@@ -383,13 +383,17 @@ final class AxElement {
     return getRectVisible(current)
   }
 
-  func findVisible() -> [AxElement] {
-    guard !self.parents.contains(where: { parent in parent.raw == self.raw }) else { return [] }
+  func findVisible() async -> [AxElement] {
+    await Task.yield()
+    if Task.isCancelled { return [] }
+    guard !self.parents.contains(where: { parent in parent.raw === self.raw }) else { return [] }
     guard isVisible else { return [] }
 
-    let childList = getChildren().flatMap({ child in
-      AxElement(child, parents: parents + [self]).findVisible()
-    })
+    var childList: [AxElement] = []
+    for child in getChildren() {
+      childList.append(contentsOf: await AxElement(child, parents: parents + [self]).findVisible())
+      if Task.isCancelled { return [] }
+    }
 
     let result = childList + [self]
     return result.filter({ el in el.isHintable })
