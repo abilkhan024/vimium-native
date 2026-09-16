@@ -188,7 +188,7 @@ class FzFindListener: Listener {
         let point = self.hints[idx].point
       {
         EventUtils.move(point)
-        if self.hints[idx].canPress() && AppOptions.shared.axClick {
+        if AppOptions.shared.axLinkClick && self.hints[idx].role == .Link {
           self.hints[idx].click()
         } else {
           EventUtils.leftClick(point, event.flags)
