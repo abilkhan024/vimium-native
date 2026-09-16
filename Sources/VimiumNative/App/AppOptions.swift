@@ -122,11 +122,12 @@ final class AppOptions {
   var smallNodeThreshold = 750
 
   // EXAMPLE:
-  //   ax_click=false
-  // NOTE: Click the element using AXUIElementPerformAction works amazing if
-  // the button is under some overlay, but ignores currently held modifiers
+  //   ax_link_click=false
+  // NOTE: When clicking a hint whose role is Link, click it using
+  // AXUIElementPerformAction instead of a physical click. This works amazing if
+  // the link is under some overlay, but ignores currently held modifiers
   // (like shift, cmd, etc.) so opening link in new tab would be impossible
-  var axClick = true
+  var axLinkClick = true
 
   var keyMappings = (
     showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
@@ -286,8 +287,8 @@ final class AppOptions {
         try self.grid.fontSize = parseCgFloat(value: value, field: key)
       case "hint_text":
         try self.hintText = parseBool(value: value, field: key)
-      case "ax_click":
-        try self.axClick = parseBool(value: value, field: key)
+      case "ax_link_click":
+        try self.axLinkClick = parseBool(value: value, field: key)
       case "hint_border":
         try self.hintBorder = parseColor(from: value, field: key)
       case "key_show_hints":

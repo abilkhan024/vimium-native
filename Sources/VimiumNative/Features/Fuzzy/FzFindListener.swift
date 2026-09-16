@@ -11,6 +11,7 @@ class FzFindListener: Listener {
   private var tmp: WindowBuilder?
   private let execQueue = DispatchQueue.global(qos: .userInteractive)
   private var systemMenuItems: [AxElement] = []
+  private var traversalTask: Task<Void, Never>?
   private let mappings = AppOptions.shared.keyMappings
 
   init() {
@@ -36,9 +37,12 @@ class FzFindListener: Listener {
     appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(self.appListener!)
 
-    DispatchQueue.main.async {
+    traversalTask = Task { [weak self] in
+      guard let self else { return }
+      let hints = await self.getFrontMostClickableHints()
+      guard !Task.isCancelled else { return }
+
       var visit = Set<Int>()
-      let hints = self.getFrontMostClickableHints()
       self.hints = hints.filter({ el in
         guard let point = el.point else { return false }
         if visit.contains(point.hashValue) { return false }
@@ -51,7 +55,7 @@ class FzFindListener: Listener {
     }
   }
 
-  private func getFrontMostClickableHints() -> [AxElement] {
+  private func getFrontMostClickableHints() async -> [AxElement] {
     guard let app = NSWorkspace.shared.frontmostApplication else { return [] }
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
@@ -63,10 +67,12 @@ class FzFindListener: Listener {
 
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
 
-    return AxElement(mainWindow).findVisible()
+    return await AxElement(mainWindow).findVisible()
   }
 
   private func onClose() {
+    traversalTask?.cancel()
+    traversalTask = nil
     InputSourceUtils.restoreCurrent()
     hintsWindow.hide().call()
     DispatchQueue.main.async {
@@ -78,6 +84,7 @@ class FzFindListener: Listener {
       self.state.fzfMode = false
       self.state.hints = []
       self.state.search = ""
+      self.state.loading = false
     }
   }
 
@@ -181,7 +188,7 @@ class FzFindListener: Listener {
         let point = self.hints[idx].point
       {
         EventUtils.move(point)
-        if self.hints[idx].canPress() && AppOptions.shared.axClick {
+        if AppOptions.shared.axLinkClick && self.hints[idx].role == .Link {
           self.hints[idx].click()
         } else {
           EventUtils.leftClick(point, event.flags)

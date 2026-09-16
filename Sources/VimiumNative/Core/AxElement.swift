@@ -86,9 +86,74 @@ enum AxRole: String {
   case Unknown = "AXUnknown"
 }
 
+// Seam over the raw Accessibility API so traversal/visibility logic can run
+// against a mock tree in tests, without a real AXUIElement.
+protocol AxNode: AnyObject {
+  func axRole() -> String?
+  func axAttributeString(_ attribute: String) -> String?
+  func axPosition() -> CGPoint?
+  func axSize() -> CGSize?
+  func axChildren() -> [AxNode]
+  func axActionNames() -> [String]
+  func axPerformAction(_ action: String) -> Bool
+}
+
+extension AXUIElement: AxNode {
+  func axRole() -> String? {
+    return axAttributeString(kAXRoleAttribute)
+  }
+
+  func axAttributeString(_ attribute: String) -> String? {
+    var value: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(self, attribute as CFString, &value)
+    guard result == .success, let stringValue = value as? String else {
+      return nil
+    }
+    return stringValue
+  }
+
+  func axPosition() -> CGPoint? {
+    var value: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(self, "AXPosition" as CFString, &value)
+    guard result == .success else { return nil }
+    var point = CGPoint.zero
+    guard AXValueGetValue((value as! AXValue), .cgPoint, &point) else { return nil }
+    return point
+  }
+
+  func axSize() -> CGSize? {
+    var value: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(self, "AXSize" as CFString, &value)
+    guard result == .success, let sizeValue = value as! AXValue?,
+      AXValueGetType(sizeValue) == .cgSize
+    else { return nil }
+    var size = CGSize.zero
+    AXValueGetValue(sizeValue, .cgSize, &size)
+    return size
+  }
+
+  func axChildren() -> [AxNode] {
+    var childrenRef: CFTypeRef?
+    let result = AXUIElementCopyAttributeValue(self, kAXChildrenAttribute as CFString, &childrenRef)
+    guard result == .success, let children = childrenRef as? [AXUIElement] else { return [] }
+    return children
+  }
+
+  func axActionNames() -> [String] {
+    var actionNames: CFArray?
+    let result = AXUIElementCopyActionNames(self, &actionNames)
+    guard result == .success, let actions = actionNames as? [String] else { return [] }
+    return actions
+  }
+
+  func axPerformAction(_ action: String) -> Bool {
+    return AXUIElementPerformAction(self, action as CFString) == .success
+  }
+}
+
 @MainActor
 final class AxElement {
-  let raw: AXUIElement
+  let raw: AxNode
   lazy var isVisible: Bool = { getIsVisible() }()
   lazy var isHintable: Bool = { getIsHintable() }()
 
@@ -157,7 +222,7 @@ final class AxElement {
     .Slider,
   ]
 
-  init(_ raw: AXUIElement, parents: [AxElement] = []) {
+  init(_ raw: AxNode, parents: [AxElement] = []) {
     self.raw = raw
     self.parents = parents
     self.setup()
@@ -169,37 +234,12 @@ final class AxElement {
   }
 
   private func setRole() {
-    var value: CFTypeRef?
-    let result = AXUIElementCopyAttributeValue(self.raw, kAXRoleAttribute as CFString, &value)
-    guard result == .success, let role = value as? String else {
-      return
-    }
+    guard let role = raw.axRole() else { return }
     self.role = AxRole.init(rawValue: role)
   }
 
   private func setDimensions() {
-    var position: CFTypeRef?
-
-    var result = AXUIElementCopyAttributeValue(self.raw, "AXPosition" as CFString, &position)
-    guard result == .success else {
-      return
-    }
-    let positionValue = (position as! AXValue)
-
-    var point = CGPoint.zero
-    if !AXValueGetValue(positionValue, .cgPoint, &point) {
-      return
-    }
-
-    var value: AnyObject?
-    result = AXUIElementCopyAttributeValue(self.raw, "AXSize" as CFString, &value)
-
-    guard result == .success, let sizeValue = value as! AXValue? else { return }
-    var size: CGSize = .zero
-    if AXValueGetType(sizeValue) != .cgSize {
-      return
-    }
-    AXValueGetValue(sizeValue, .cgSize, &size)
+    guard let point = raw.axPosition(), let size = raw.axSize() else { return }
 
     self.size = size
     self.rawPoint = point
@@ -220,24 +260,16 @@ final class AxElement {
   }
 
   func canPress() -> Bool {
-    var actionNames: CFArray?
-    let result = AXUIElementCopyActionNames(raw, &actionNames)
-
-    guard result == .success, let actions = actionNames as? [String] else {
-      return false
-    }
-
-    return actions.contains(kAXPressAction)
+    return raw.axActionNames().contains(kAXPressAction)
   }
 
   // TODO: Suboptimal approach, because it doesn't account for event.flags
   // so no cmd+click, for now cmd behaviour is not
   func click() {
-    let result = AXUIElementPerformAction(self.raw, kAXPressAction as CFString)
-    if result == .success {
+    if raw.axPerformAction(kAXPressAction) {
       print("Successfully triggered click")
     } else {
-      print("Failed to trigger click: \(result)")
+      print("Failed to trigger click")
     }
   }
 
@@ -280,29 +312,16 @@ final class AxElement {
   }
 
   private func getAttributeString(_ attribute: String) -> String? {
-    var value: CFTypeRef?
-    let result = AXUIElementCopyAttributeValue(self.raw, attribute as CFString, &value)
-    guard result == .success, let stringValue = value as? String else {
-      return nil
-    }
-    return stringValue
+    return raw.axAttributeString(attribute)
   }
 
-  var children: [AXUIElement]? = nil
+  var children: [AxNode]? = nil
 
-  func getChildren() -> [AXUIElement] {
-    var childrenRef: CFTypeRef?
+  func getChildren() -> [AxNode] {
     if let children = self.children {
       return children
     }
-
-    let childResult = AXUIElementCopyAttributeValue(
-      raw, kAXChildrenAttribute as CFString, &childrenRef)
-    if childResult == .success, let children = childrenRef as? [AXUIElement] {
-      self.children = children
-    } else {
-      self.children = []
-    }
+    self.children = raw.axChildren()
     return self.children!
   }
 
@@ -318,12 +337,14 @@ final class AxElement {
     if children.count <= AppOptions.shared.smallNodeThreshold {
       return true
     }
-    var current = bound
-    for parent in parents {
-      guard let parentBound = parent.bound else { return false }
-      current = current.intersection(parentBound)
-    }
-    return getRectVisible(current)
+
+    // TODO: Sometimes too aggressive, find all places then debug
+    // var current = bound
+    // for parent in parents {
+    //   guard let parentBound = parent.bound else { return false }
+    //   current = current.intersection(parentBound)
+    // }
+    return getRectVisible(bound)
   }
 
   func normailzeWindowBound(bound: CGRect) -> CGRect {
@@ -371,7 +392,7 @@ final class AxElement {
         if index == 0 {
           return normailzeWindowBound(bound: bound)
         }
-        return bound
+        return nil
       })
       .filter({ bound in bound != nil })
 
@@ -383,40 +404,19 @@ final class AxElement {
     return getRectVisible(current)
   }
 
-  func findVisible() -> [AxElement] {
-    guard !self.parents.contains(where: { parent in parent.raw == self.raw }) else { return [] }
+  func findVisible() async -> [AxElement] {
+    await Task.yield()
+    if Task.isCancelled { return [] }
+    guard !self.parents.contains(where: { parent in parent.raw === self.raw }) else { return [] }
     guard isVisible else { return [] }
 
-    let childList = getChildren().flatMap({ child in
-      AxElement(child, parents: parents + [self]).findVisible()
-    })
+    var childList: [AxElement] = []
+    for child in getChildren() {
+      childList.append(contentsOf: await AxElement(child, parents: parents + [self]).findVisible())
+      if Task.isCancelled { return [] }
+    }
 
     let result = childList + [self]
     return result.filter({ el in el.isHintable })
-  }
-
-  func isAncestorOf(rawElement: AXUIElement) -> Bool {
-    let cachedChildren = getChildren()
-    if cachedChildren.contains(where: { el in CFEqual(el, rawElement) }) {
-      return true
-    }
-
-    var current: AXUIElement? = rawElement
-    while let currentElement = current {
-      var parentRef: CFTypeRef?
-      let result = AXUIElementCopyAttributeValue(
-        currentElement, kAXParentAttribute as CFString, &parentRef)
-
-      if result == .success, let parent = parentRef {
-        let parentAX = parent as! AXUIElement
-        if CFEqual(parentAX, self.raw) {
-          return true
-        }
-        current = parentAX
-      } else {
-        break
-      }
-    }
-    return false
   }
 }

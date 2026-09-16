@@ -9,6 +9,9 @@ let package = Package(
   platforms: [.macOS(.v13)],
   products: [.executable(name: appName, targets: [appName])],
   dependencies: [],
-  targets: [.executableTarget(name: appName, dependencies: [])],
+  targets: [
+    .executableTarget(name: appName, dependencies: []),
+    .testTarget(name: "VimiumNativeTests", dependencies: [.target(name: appName)]),
+  ],
   swiftLanguageModes: [.v6],
 )
