@@ -16,11 +16,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
           AXIsProcessTrusted is false! Can't work with that.
 
-          You must allow Accessibility permission to Vimium Native.
+          You must allow Accessibility permission to the app that launches Vimium Native.
 
             1. Go to Settings -> Privacy & Security -> Accessibility
             2. Press "+"
-            3. Add Vimium Native.app
+            3. Add Vimium Native or your terminal app
             4. Restart the vimium
 
         """)
@@ -29,7 +29,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     if !CGPreflightListenEventAccess() {
       CGRequestListenEventAccess()
-      print("Input Monitoring permission is required. Add Vimium Native.app and restart it.")
+      print("Input Monitoring permission is required. Grant it to Vimium Native or your terminal app, then restart it.")
       exit(1)
     }
     guard AppEventManager.listen() else {
