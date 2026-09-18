@@ -10,24 +10,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationDidFinishLaunching(_ notification: Notification) {
-    if !AXIsProcessTrusted() {
+    if !AXIsProcessTrustedWithOptions(nil) {
       print(
         """
 
           AXIsProcessTrusted is false! Can't work with that.
 
-          You must allow a11y permission to the 'runner' aka your terminal client e.g. iTerm2. To do that:
+          You must allow Accessibility permission to Vimium Native.
 
             1. Go to Settings -> Privacy & Security -> Accessibility
             2. Press "+"
-            3. Add your terminal app
+            3. Add Vimium Native.app
             4. Restart the vimium
 
         """)
 
       exit(1)
     }
-    AppEventManager.listen()
+    if !CGPreflightListenEventAccess() {
+      CGRequestListenEventAccess()
+      print("Input Monitoring permission is required. Add Vimium Native.app and restart it.")
+      exit(1)
+    }
+    guard AppEventManager.listen() else {
+      print("Unable to enable the global event tap. Restart Vimium Native after granting Input Monitoring permission.")
+      exit(1)
+    }
     print("Listening to trigger key")
   }
 

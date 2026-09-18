@@ -27,14 +27,21 @@ class AppEventManager {
     }
   }
 
-  static func listen() {
+  static func listen() -> Bool {
     let eventMask = (1 << CGEventType.keyDown.rawValue)
     eventTap = CGEvent.tapCreate(
       tap: .cgSessionEventTap,
       place: .headInsertEventTap,
-      options: .defaultTap,
+      options: .listenOnly,
       eventsOfInterest: CGEventMask(eventMask),
       callback: { _, type, event, _ in
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+          print("Global event tap was disabled (type \(type.rawValue)); re-enabling it")
+          if let eventTap = AppEventManager.eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+          }
+          return Unmanaged.passUnretained(event)
+        }
 
         let preserve = Unmanaged.passRetained(event)
         if type != .keyDown {
@@ -78,11 +85,15 @@ class AppEventManager {
       userInfo: nil
     )
 
-    if let eventTap = eventTap {
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-      CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-      CGEvent.tapEnable(tap: eventTap, enable: true)
+    guard let eventTap else {
+      print("Unable to create the global event tap. Grant Vimium Native Input Monitoring permission.")
+      return false
     }
+
+    let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: eventTap, enable: true)
+    return CGEvent.tapIsEnabled(tap: eventTap)
   }
 
   static func stop() {
