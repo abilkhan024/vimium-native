@@ -96,6 +96,22 @@ protocol AxNode: AnyObject {
   func axChildren() -> [AxNode]
   func axActionNames() -> [String]
   func axPerformAction(_ action: String) -> Bool
+  // Everything traversal needs per node, ideally in a single round trip
+  func axTraversalAttributes() -> AxTraversalAttributes
+}
+
+struct AxTraversalAttributes {
+  var role: String?
+  var position: CGPoint?
+  var size: CGSize?
+  var children: [AxNode] = []
+}
+
+extension AxNode {
+  func axTraversalAttributes() -> AxTraversalAttributes {
+    return AxTraversalAttributes(
+      role: axRole(), position: axPosition(), size: axSize(), children: axChildren())
+  }
 }
 
 extension AXUIElement: AxNode {
@@ -149,13 +165,50 @@ extension AXUIElement: AxNode {
   func axPerformAction(_ action: String) -> Bool {
     return AXUIElementPerformAction(self, action as CFString) == .success
   }
+
+  // Each AX call is an IPC round trip to the target app, so fetch all
+  // traversal attributes at once. Missing attributes come back as AXValue
+  // errors in their slot and end up nil
+  func axTraversalAttributes() -> AxTraversalAttributes {
+    let attributes =
+      [
+        kAXRoleAttribute, kAXPositionAttribute, kAXSizeAttribute, kAXChildrenAttribute,
+      ] as CFArray
+    var valuesRef: CFArray?
+    let result = AXUIElementCopyMultipleAttributeValues(
+      self, attributes, AXCopyMultipleAttributeOptions(rawValue: 0), &valuesRef)
+    guard result == .success, let values = valuesRef as? [AnyObject], values.count == 4 else {
+      return AxTraversalAttributes(
+        role: axRole(), position: axPosition(), size: axSize(), children: axChildren())
+    }
+
+    var traversal = AxTraversalAttributes(
+      role: values[0] as? String, children: values[3] as? [AXUIElement] ?? [])
+    var position = CGPoint.zero
+    if let value = AXUIElement.axValue(values[1], .cgPoint),
+      AXValueGetValue(value, .cgPoint, &position)
+    {
+      traversal.position = position
+    }
+    var size = CGSize.zero
+    if let value = AXUIElement.axValue(values[2], .cgSize), AXValueGetValue(value, .cgSize, &size) {
+      traversal.size = size
+    }
+    return traversal
+  }
+
+  private static func axValue(_ value: AnyObject, _ type: AXValueType) -> AXValue? {
+    guard CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
+    let axValue = value as! AXValue
+    return AXValueGetType(axValue) == type ? axValue : nil
+  }
 }
 
 @MainActor
 final class AxElement {
   let raw: AxNode
   lazy var isVisible: Bool = { getIsVisible() }()
-  lazy var isHintable: Bool = { getIsHintable() }()
+  lazy var isHintable: Bool = { BenchUtils.measure("isHintable") { getIsHintable() } }()
 
   var role: AxRole?
   var size: CGSize?
@@ -229,17 +282,18 @@ final class AxElement {
   }
 
   private func setup() {
-    self.setRole()
-    self.setDimensions()
+    let attributes = BenchUtils.measure("ax: role+position+size+children (batched)") {
+      raw.axTraversalAttributes()
+    }
+    if let role = attributes.role {
+      self.role = AxRole.init(rawValue: role)
+    }
+    self.setDimensions(position: attributes.position, size: attributes.size)
+    self.children = attributes.children
   }
 
-  private func setRole() {
-    guard let role = raw.axRole() else { return }
-    self.role = AxRole.init(rawValue: role)
-  }
-
-  private func setDimensions() {
-    guard let point = raw.axPosition(), let size = raw.axSize() else { return }
+  private func setDimensions(position: CGPoint?, size: CGSize?) {
+    guard let point = position, let size = size else { return }
 
     self.size = size
     self.rawPoint = point
@@ -277,6 +331,8 @@ final class AxElement {
     if self.searchTerm != nil {
       return self.searchTerm!
     }
+    let searchTermStart = BenchUtils.now()
+    defer { BenchUtils.add("ax: searchTerm (uncached)", BenchUtils.now() - searchTermStart) }
     if let val = getAttributeString(kAXValueAttribute), !val.isEmpty {
       self.searchTerm = val
     } else if let val = getAttributeString(kAXDescriptionAttribute), !val.isEmpty {
@@ -321,7 +377,7 @@ final class AxElement {
     if let children = self.children {
       return children
     }
-    self.children = raw.axChildren()
+    self.children = BenchUtils.measure("ax: children") { raw.axChildren() }
     return self.children!
   }
 
@@ -405,10 +461,20 @@ final class AxElement {
   }
 
   func findVisible() async -> [AxElement] {
+    let yieldStart = BenchUtils.now()
     await Task.yield()
+    BenchUtils.add("Task.yield (main busy elsewhere)", BenchUtils.now() - yieldStart)
     if Task.isCancelled { return [] }
     guard !self.parents.contains(where: { parent in parent.raw === self.raw }) else { return [] }
     guard isVisible else { return [] }
+
+    // Element itself can't be hinted outside the window (see getIsHintable),
+    // and its subtree is assumed to stay within its bound, so skip it whole
+    if let window = parents.first?.bound, let bound, !bound.intersects(window) {
+      BenchUtils.count("pruned offscreen subtrees")
+      BenchUtils.count("pruned offscreen direct children", by: getChildren().count)
+      return []
+    }
 
     var childList: [AxElement] = []
     for child in getChildren() {

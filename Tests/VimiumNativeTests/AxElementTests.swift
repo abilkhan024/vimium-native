@@ -43,6 +43,24 @@ final class AxElementTests: XCTestCase {
     XCTAssertEqual(result.first?.role, .Button)
   }
 
+  func testOffscreenSubtreeIsPruned() async {
+    // Child of the offscreen group is inside the window on purpose, it's
+    // skipped anyway because the subtree is assumed to stay within its parent
+    let innerButton = MockAxNode(role: .Button, frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+    let offscreenGroup = MockAxNode(
+      role: .Group, frame: CGRect(x: 0, y: 500, width: 100, height: 100), children: [innerButton])
+    let partialButton = MockAxNode(
+      role: .Button, frame: CGRect(x: 190, y: 50, width: 20, height: 20))
+    let window = MockAxNode(
+      role: .Window, frame: CGRect(x: 0, y: 0, width: 200, height: 200),
+      children: [offscreenGroup, partialButton])
+
+    let result = await AxElement(window).findVisible()
+
+    XCTAssertEqual(result.count, 1)
+    XCTAssertEqual(result.first?.bound?.minX, 190)
+  }
+
   func testStaticTextNestedInHintableParentIsExcluded() async {
     let label = MockAxNode(
       role: .StaticText, frame: CGRect(x: 0, y: 0, width: 10, height: 10),

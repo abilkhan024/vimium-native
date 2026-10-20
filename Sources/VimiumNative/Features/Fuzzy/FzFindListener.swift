@@ -30,16 +30,27 @@ class FzFindListener: Listener {
     if self.appListener != nil {
       return
     }
+    let timeline = BenchTimeline("hints", start: BenchUtils.tapTime)
+    timeline.mark("tap -> main dispatch")
+    BenchUtils.resetTotals()
+
     state.search = ""
     InputSourceUtils.selectAbc()
-    hintsWindow.front().hideCursor().call()
+    timeline.mark("selectAbc")
+    hintsWindow.front().call()
+    timeline.mark("window front")
+    hintsWindow.hideCursor().call()
+    timeline.mark("hideCursor")
     state.loading = true
     appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(self.appListener!)
+    timeline.mark("loading state + add listener")
+    BenchUtils.afterNextCommit { timeline.mark("first commit (loading)") }
 
     traversalTask = Task { [weak self] in
       guard let self else { return }
-      let hints = await self.getFrontMostClickableHints()
+      timeline.mark("task start")
+      let hints = await self.getFrontMostClickableHints(timeline)
       guard !Task.isCancelled else { return }
 
       var visit = Set<Int>()
@@ -49,25 +60,41 @@ class FzFindListener: Listener {
         visit.insert(point.hashValue)
         return true
       })
+      timeline.mark("dedupe (\(hints.count) -> \(self.hints.count) hints)")
       self.state.hints = self.hints
-      self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
+      let config_val = 2
+      self.state.texts = HintUtils.getLabels(
+        from: max(
+          self.state.hints.count,
+          AppOptions.shared
+            .hintChars.count * config_val + 1))
+      timeline.mark("labels")
       self.state.loading = false
+      timeline.mark("state set")
+      BenchUtils.afterNextCommit {
+        timeline.mark("hints commit (SwiftUI body + layout + CA commit)")
+        BenchUtils.printTotals("hints")
+      }
     }
   }
 
-  private func getFrontMostClickableHints() async -> [AxElement] {
+  private func getFrontMostClickableHints(_ timeline: BenchTimeline) async -> [AxElement] {
     guard let app = NSWorkspace.shared.frontmostApplication else { return [] }
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
 
     AXUIElementSetAttributeValue(appEl, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+    timeline.mark("set AXEnhancedUserInterface")
     var winRef: CFTypeRef?
     let winResult = AXUIElementCopyAttributeValue(
       appEl, kAXMainWindowAttribute as CFString, &winRef)
 
+    timeline.mark("copy main window")
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
 
-    return await AxElement(mainWindow).findVisible()
+    let result = await AxElement(mainWindow).findVisible()
+    timeline.mark("traversal (findVisible)")
+    return result
   }
 
   private func onClose() {
@@ -155,6 +182,16 @@ class FzFindListener: Listener {
 
   // NOTE: Assuming that there will be no usage of conflicting keymappings
   private func onTyping(_ event: CGEvent) {
+    let timeline = BenchTimeline("key", start: BenchUtils.tapTime)
+    timeline.mark("tap -> main dispatch")
+    BenchUtils.resetTotals()
+    defer {
+      timeline.mark("handled")
+      BenchUtils.afterNextCommit {
+        timeline.mark("commit (SwiftUI body + layout + CA commit)")
+        BenchUtils.printTotals("key")
+      }
+    }
     guard
       let bestActionKey = keyToPrimeAction.keys.max(by: { a, b in
         a.getScore(event: event) < b.getScore(event: event)
