@@ -423,6 +423,20 @@ final class AppOptions {
     }
   }
 
+  private static let defaultConfig = """
+    # All options and their default values:
+    # https://github.com/abilkhan024/vimium-native#options
+
+    """
+
+  func createDefaultConfig(path: String) throws {
+    let url = URL(fileURLWithPath: path)
+    try FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Self.defaultConfig.write(to: url, atomically: true, encoding: .utf8)
+    print("Created default config at '\(path)'")
+  }
+
   func getConfigPath() -> (path: String, message: String) {
     if let configPath = ProcessInfo.processInfo.environment["VIMIUM_CONFIG_PATH"] {
       return (

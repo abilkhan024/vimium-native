@@ -87,7 +87,8 @@ brew untap abilkhan024/tools
 # Options
 
 Config file will be read from $HOME/.config/vimium or `$VIMIUM_CONFIG_PATH` if
-it's set
+it's set. If the file doesn't exist, "Edit config" in the menu bar item creates
+an empty one at that path and opens it
 
 Default config:
 
@@ -121,8 +122,9 @@ key_reopen_grid_view='/'
 key_right_click='.'
 key_left_click='<CR>'
 
-# Font family used in hints use vimium list-fonts to view all fonts
-font_family=system
+# Font family used in hints, defaults to the system font when not set.
+# Use `vimium list-fonts` to view all fonts
+# font_family=FiraCode Nerd Font Bold
 
 # Letter spacing for hint text
 letter_spacing=0.0
@@ -134,12 +136,12 @@ hint_font_size=14.0
 hint_triangle_height=6.0
 
 # Mouse params when entering grid mode:
-# Color by default
-mouse_color_normal=#ff0000
-# Color when dragging
-mouse_color_visual=#00ffff
-# Color of the outline when in mouse mode
-mouse_outline_color=#00ffff
+# Color by default, defaults to system red when not set
+# mouse_color_normal=#ff0000
+# Color when dragging, defaults to system blue when not set
+# mouse_color_visual=#0000ff
+# Color of the outline when in mouse mode, defaults to system blue when not set
+# mouse_outline_color=#0000ff
 # Hides Outline when set to 0
 mouse_outline_width=8.0
 # Virtual circle cursor size
@@ -197,11 +199,11 @@ small_node_threshold=750
 # but ignores currently held modifiers (like shift, cmd, etc.) so opening link
 # in new tab would be impossible.
 # true by default, set to false if you want a physical click instead
-ax_link_click=false
+ax_link_click=true
 
-# INFO: Color that is used to show borders of element rect defaults to .3 of color_bg
-# set as #00000000 if want to remove it from the view
-hint_border=#00000000
+# Color that is used to show borders of element rect, defaults to .3 opacity
+# of color_bg when not set. Set as #00000000 if want to remove it from the view
+# hint_border=#00000000
 ```
 
 # Building from source
