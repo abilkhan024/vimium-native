@@ -27,7 +27,12 @@ class AppEventManager {
     }
   }
 
-  static func listen() {
+  /// Returns false if the event tap could not be created
+  @discardableResult
+  static func listen() -> Bool {
+    if eventTap != nil {
+      return true
+    }
     let eventMask = (1 << CGEventType.keyDown.rawValue)
     eventTap = CGEvent.tapCreate(
       tap: .cgSessionEventTap,
@@ -36,8 +41,8 @@ class AppEventManager {
       eventsOfInterest: CGEventMask(eventMask),
       callback: { _, type, event, _ in
 
-        if type == .tapDisabledByTimeout {
-          print("Global event tap was disabled by timeout. Recovering.")
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+          print("Global event tap was disabled (\(type.rawValue)). Recovering.")
           if let eventTap = AppEventManager.eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: true)
           }
@@ -104,11 +109,13 @@ class AppEventManager {
       userInfo: nil
     )
 
-    if let eventTap = eventTap {
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-      CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-      CGEvent.tapEnable(tap: eventTap, enable: true)
+    guard let eventTap = eventTap else {
+      return false
     }
+    let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: eventTap, enable: true)
+    return CGEvent.tapIsEnabled(tap: eventTap)
   }
 
   static func stop() {
