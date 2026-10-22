@@ -152,6 +152,9 @@ scroll_size_vertical=5
 scroll_size_horizontal=40
 scroll_size_vertical_page=100
 
+# Scroll animation duration in milliseconds, 0 disables animation
+smooth_scroll_duration=0
+
 # Cursor move size
 cursor_step=5
 
@@ -236,7 +239,6 @@ rm -rf ./vimium-native-build
 
 - Multiple screen navigation, fzfind works for main screen only _(feel free to
   contribute if that's an issue)_
-- Smooth scrolling _(feel free to contribute if that's an issue)_
 - AeroSpace support. Due to how aerospace manages workspaces, hinting behaviour
   is unstable and unpleasant to work with, instead prefer some manager that
   won't change window sizes and their positions, e.g. custom hammerspon

@@ -55,6 +55,11 @@ final class AppOptions {
   var scrollSize = (vertical: 5, horizontal: 40, verticalPage: 100)
 
   // EXAMPLE:
+  //   smooth_scroll_duration=150
+  // INFO: Scroll animation duration in milliseconds, 0 disables animation
+  var smoothScrollDuration = 0
+
+  // EXAMPLE:
   //   cursor_step=20
   // INFO: Cursor move size
   var cursorStep = 5
@@ -260,6 +265,8 @@ final class AppOptions {
       case "scroll_size_vertical_page":
         try self.scrollSize.verticalPage = parseInt(
           value: value, field: key)
+      case "smooth_scroll_duration":
+        try self.smoothScrollDuration = parseInt(value: value, field: key)
       case "scroll_size_horizontal":
         try self.scrollSize.horizontal = parseInt(value: value, field: key)
       case "jiggle_when_dragging":

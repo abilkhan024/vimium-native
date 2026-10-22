@@ -14,7 +14,7 @@ class EventUtils {
     event?.post(tap: .cghidEventTap)
   }
 
-  static func scroll(deltaY: Int32, deltaX: Int32 = 0) {
+  static func scroll(deltaY: Int32, deltaX: Int32 = 0, continuous: Bool = false) {
     let event = CGEvent(
       scrollWheelEvent2Source: nil,
       units: .pixel,
@@ -22,6 +22,11 @@ class EventUtils {
       wheel1: deltaY,
       wheel2: deltaX,
       wheel3: 0)
+    // Marks event as trackpad-like, so apps apply it as is instead of
+    // animating each event on their own
+    if continuous {
+      event?.setIntegerValueField(.scrollWheelEventIsContinuous, value: 1)
+    }
     event?.post(tap: .cghidEventTap)
   }
 
