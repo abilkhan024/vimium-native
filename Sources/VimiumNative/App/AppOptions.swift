@@ -136,6 +136,7 @@ final class AppOptions {
 
   var keyMappings = (
     showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
+    showCopyHints: KeyMapping(key: .y, modifiers: [.command, .shift]),
     showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),
     startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),
     close: KeyMapping(key: .esc),
@@ -300,6 +301,9 @@ final class AppOptions {
         try self.hintBorder = parseColor(from: value, field: key)
       case "key_show_hints":
         try self.keyMappings.showHints = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_show_copy_hints":
+        try self.keyMappings.showCopyHints = parseKeyMapping(
           from: value, field: key, flags: [.requireModifiers])
       case "key_show_grid":
         try self.keyMappings.showGrid = parseKeyMapping(

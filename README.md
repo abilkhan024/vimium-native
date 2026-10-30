@@ -33,6 +33,12 @@ Trigger hint view by pressing default key binding of `Cmd + Shift + .` which
 will hint interactive elements, press `/` which will enter search mode and start
 typing the text that you want to click, once the hint is focused press enter
 
+### Copy hints
+
+Trigger copy hint view by pressing default key binding of `Cmd + Shift + y`
+which shows the same hints (search with `/` works too), but selecting a hint
+copies its text to the clipboard instead of clicking it
+
 ### Grid & Mouse
 
 Trigger grid view by pressing default key binding of `Cmd + Shift + ,` which
@@ -96,6 +102,7 @@ Default config:
 # Key bindings, format is <Mod>{key} mapping can be found in 
 # `Sources/VimiumNative/Core/KeyMapping.swift` -> `let mappingToValue`
 key_show_hints='<D><S>.'
+key_show_copy_hints='<D><S>y'
 key_show_grid='<D><S>,'
 key_start_scroll='<D><S>j'
 key_close='<Esc>'

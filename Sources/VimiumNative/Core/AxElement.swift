@@ -346,6 +346,41 @@ final class AxElement {
     return self.searchTerm!
   }
 
+  // Text shown to the user, falls back to the descendants' text since
+  // controls like buttons and links usually render it via StaticText children
+  func getCopyText() -> String? {
+    if let text = AxElement.ownText(raw) {
+      return text
+    }
+    let texts = AxElement.descendantTexts(getChildren(), depth: 8)
+    return texts.isEmpty ? nil : texts.joined(separator: " ")
+  }
+
+  private static func ownText(_ node: AxNode) -> String? {
+    let attributes = [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute]
+    for attribute in attributes {
+      if let text = node.axAttributeString(attribute)?.trimmingCharacters(
+        in: .whitespacesAndNewlines), !text.isEmpty
+      {
+        return text
+      }
+    }
+    return nil
+  }
+
+  private static func descendantTexts(_ nodes: [AxNode], depth: Int) -> [String] {
+    guard depth > 0 else { return [] }
+    var texts: [String] = []
+    for node in nodes {
+      if node.axRole() == AxRole.StaticText.rawValue, let text = ownText(node) {
+        texts.append(text)
+      } else {
+        texts.append(contentsOf: descendantTexts(node.axChildren(), depth: depth - 1))
+      }
+    }
+    return texts
+  }
+
   func getAttrs() -> [String?] {
     return [
       getAttributeString(kAXTitleAttribute),

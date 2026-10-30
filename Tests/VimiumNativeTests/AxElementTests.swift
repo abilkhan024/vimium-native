@@ -119,4 +119,28 @@ final class AxElementTests: XCTestCase {
 
     XCTAssertTrue(result.isEmpty)
   }
+
+  func testCopyTextPrefersOwnText() {
+    let label = MockAxNode(role: .StaticText, attributes: [kAXValueAttribute: "Child"])
+    let field = MockAxNode(
+      role: .TextField, children: [label], attributes: [kAXValueAttribute: "  Own value \n"])
+
+    XCTAssertEqual(AxElement(field).getCopyText(), "Own value")
+  }
+
+  func testCopyTextFallsBackToDescendantText() {
+    let first = MockAxNode(role: .StaticText, attributes: [kAXValueAttribute: "Sign"])
+    let second = MockAxNode(role: .StaticText, attributes: [kAXTitleAttribute: "in"])
+    let group = MockAxNode(role: .Group, children: [second])
+    let button = MockAxNode(role: .Button, children: [first, group])
+
+    XCTAssertEqual(AxElement(button).getCopyText(), "Sign in")
+  }
+
+  func testCopyTextIsNilWithoutText() {
+    let image = MockAxNode(role: .Image)
+    let button = MockAxNode(role: .Button, children: [image])
+
+    XCTAssertNil(AxElement(button).getCopyText())
+  }
 }

@@ -15,7 +15,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       exitWithPermissionHint(missing)
     }
     if !AppEventManager.listen() {
-      exitWithPermissionHint(["Accessibility", "Input Monitoring"], reason: "Failed to create event tap.")
+      exitWithPermissionHint(
+        ["Accessibility", "Input Monitoring"], reason: "Failed to create event tap.")
     }
     print("Listening to trigger key")
   }

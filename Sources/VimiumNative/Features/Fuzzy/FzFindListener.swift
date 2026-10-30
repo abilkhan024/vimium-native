@@ -1,7 +1,6 @@
 import CoreGraphics
 @preconcurrency import SwiftUI
 
-// TODO: Add feature that selects/copies text for text elements
 @MainActor
 class FzFindListener: Listener {
   private let hintsWindow = FzFindWindowManager.get(.hints)
@@ -13,6 +12,7 @@ class FzFindListener: Listener {
   private var systemMenuItems: [AxElement] = []
   private var traversalTask: Task<Void, Never>?
   private let mappings = AppOptions.shared.keyMappings
+  private var copyMode = false
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
@@ -24,6 +24,7 @@ class FzFindListener: Listener {
 
   func matches(_ event: CGEvent) -> Bool {
     return mappings.showHints.matches(event: event)
+      || mappings.showCopyHints.matches(event: event)
   }
 
   func callback(_ event: CGEvent) {
@@ -34,6 +35,7 @@ class FzFindListener: Listener {
     timeline.mark("tap -> main dispatch")
     BenchUtils.resetTotals()
 
+    copyMode = mappings.showCopyHints.matches(event: event)
     state.search = ""
     InputSourceUtils.selectAbc()
     timeline.mark("selectAbc")
@@ -164,9 +166,8 @@ class FzFindListener: Listener {
     },
     mappings.selectOccurence: { event in
       guard self.state.fzfMode else { return true }
-      if self.state.fzfSelectedIdx != -1, let point = self.hints[self.state.fzfSelectedIdx].point {
-        EventUtils.leftClick(point, event.flags)
-        self.onClose()
+      if self.state.fzfSelectedIdx != -1 {
+        self.select(self.hints[self.state.fzfSelectedIdx], event, physicalOnly: true)
       }
       return false
     },
@@ -221,20 +222,40 @@ class FzFindListener: Listener {
         return onClose()
       }
 
-      if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count,
-        let point = self.hints[idx].point
-      {
-        EventUtils.move(point)
-        if AppOptions.shared.axLinkClick && self.hints[idx].role == .Link {
-          self.hints[idx].click()
-        } else {
-          EventUtils.leftClick(point, event.flags)
-        }
-        onClose()
+      if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count {
+        select(self.hints[idx], event)
       }
       return
     }
 
     let _ = bestAction(event)
+  }
+
+  private func select(_ hint: AxElement, _ event: CGEvent, physicalOnly: Bool = false) {
+    defer { onClose() }
+    if copyMode {
+      if let point = hint.point {
+        EventUtils.move(point)
+      }
+      if let text = hint.getCopyText() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+      } else {
+        print("WARNING: Selected hint has no text to copy")
+      }
+      return
+    }
+
+    guard let point = hint.point else { return }
+    if physicalOnly {
+      EventUtils.leftClick(point, event.flags)
+      return
+    }
+    EventUtils.move(point)
+    if AppOptions.shared.axLinkClick && hint.role == .Link {
+      hint.click()
+    } else {
+      EventUtils.leftClick(point, event.flags)
+    }
   }
 }
