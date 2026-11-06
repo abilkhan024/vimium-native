@@ -134,6 +134,21 @@ final class AppOptions {
   // (like shift, cmd, etc.) so opening link in new tab would be impossible
   var axLinkClick = true
 
+  // EXAMPLE:
+  //   ignore_empty_depth=1
+  // NOTE: Elements with zero width or height are skipped with their whole
+  // subtree, but some apps (e.g. websites) wrap visible elements in them. Up
+  // to this many such elements in a row are traversed through instead, they
+  // are still never hinted. 0 disables it, higher == slower
+  var ignoreEmptyDepth = 0
+
+  // EXAMPLE:
+  //   debug=true
+  // NOTE: Development only, prints timings of the hints pipeline to stdout and
+  // records every node visited by the hints traversal with the reason it was
+  // skipped, see TraversalRecorder. Makes hints noticeably slower
+  var debug = false
+
   var keyMappings = (
     showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
     showCopyHints: KeyMapping(key: .y, modifiers: [.command, .shift]),
@@ -297,6 +312,10 @@ final class AppOptions {
         try self.hintText = parseBool(value: value, field: key)
       case "ax_link_click":
         try self.axLinkClick = parseBool(value: value, field: key)
+      case "ignore_empty_depth":
+        try self.ignoreEmptyDepth = parseInt(value: value, field: key)
+      case "debug":
+        try self.debug = parseBool(value: value, field: key)
       case "hint_border":
         try self.hintBorder = parseColor(from: value, field: key)
       case "key_show_hints":

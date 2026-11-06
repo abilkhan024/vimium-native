@@ -76,6 +76,7 @@ class FzFindListener: Listener {
       BenchUtils.afterNextCommit {
         timeline.mark("hints commit (SwiftUI body + layout + CA commit)")
         BenchUtils.printTotals("hints")
+        TraversalRecorder.flush(hints: self.hints)
       }
     }
   }
@@ -94,6 +95,7 @@ class FzFindListener: Listener {
     timeline.mark("copy main window")
     guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
 
+    TraversalRecorder.begin(app: app.localizedName ?? "pid \(pid)")
     let result = await AxElement(mainWindow).findVisible()
     timeline.mark("traversal (findVisible)")
     return result

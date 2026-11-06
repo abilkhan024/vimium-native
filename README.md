@@ -214,6 +214,17 @@ ax_link_click=true
 # Color that is used to show borders of element rect, defaults to .3 opacity
 # of color_bg when not set. Set as #00000000 if want to remove it from the view
 # hint_border=#00000000
+
+# Elements with zero width or height are skipped with their whole subtree, but
+# some apps (e.g. websites) wrap visible elements in them. Up to this many such
+# elements in a row are traversed through instead, they are still never hinted.
+# 0 disables it, higher == slower
+ignore_empty_depth=0
+
+# Development only, prints timings of the hints pipeline to stdout and writes
+# every node visited while looking for hints, along with the reason it was
+# skipped, to /tmp/vimium-traversal-<timestamp>.log. Makes hints noticeably slower
+debug=false
 ```
 
 # Building from source

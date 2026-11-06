@@ -5,8 +5,10 @@ import Foundation
 // Output is printed to stdout prefixed with [bench], and only when `debug` is
 // on. All callers run on the main thread
 final class BenchUtils {
-  // DEVELOPMENT ONLY: Flip locally to print bench output, never ship as true
-  static let debug = false
+  // Set via `debug=true` in the config, see AppOptions.debug
+  static var debug: Bool {
+    return MainActor.assumeIsolated { AppOptions.shared.debug }
+  }
 
   nonisolated(unsafe) private static var totals: [String: (ns: UInt64, count: Int)] = [:]
   nonisolated(unsafe) private static var counters: [String: Int] = [:]

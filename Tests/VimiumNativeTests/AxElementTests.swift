@@ -120,6 +120,52 @@ final class AxElementTests: XCTestCase {
     XCTAssertTrue(result.isEmpty)
   }
 
+  func testIgnoreEmptyDepthTraversesEmptyElementsInARow() async {
+    defer { AppOptions.shared.ignoreEmptyDepth = 0 }
+
+    // Zero width wrappers whose content is laid out elsewhere, like the chat
+    // column on twitch
+    let button = MockAxNode(role: .Button, frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+    let inner = MockAxNode(
+      role: .Group, frame: CGRect(x: 200, y: 0, width: 0, height: 100), children: [button])
+    let outer = MockAxNode(
+      role: .Group, frame: CGRect(x: 200, y: 0, width: 0, height: 100), children: [inner])
+    let window = MockAxNode(
+      role: .Window, frame: CGRect(x: 0, y: 0, width: 200, height: 200), children: [outer])
+
+    var hintCounts: [Int] = []
+    for depth in 0...2 {
+      AppOptions.shared.ignoreEmptyDepth = depth
+      hintCounts.append(await AxElement(window).findVisible().count)
+    }
+
+    XCTAssertEqual(hintCounts, [0, 0, 1])
+  }
+
+  func testRecorderKeepsTreeOrderAndSkipReasons() async {
+    AppOptions.shared.debug = true
+    defer { AppOptions.shared.debug = false }
+
+    let button = MockAxNode(role: .Button, frame: CGRect(x: 0, y: 0, width: 20, height: 20))
+    let tiny = MockAxNode(role: .Button, frame: CGRect(x: 0, y: 0, width: 1, height: 20))
+    let group = MockAxNode(
+      role: .Group, frame: CGRect(x: 0, y: 0, width: 100, height: 100), children: [button, tiny])
+    let offscreen = MockAxNode(role: .Group, frame: CGRect(x: 0, y: 500, width: 100, height: 100))
+    let window = MockAxNode(
+      role: .Window, frame: CGRect(x: 0, y: 0, width: 200, height: 200),
+      children: [group, offscreen])
+
+    TraversalRecorder.begin(app: "test")
+    _ = await AxElement(window).findVisible()
+
+    let recorded = TraversalRecorder.entries.map { entry in
+      "\(entry.depth) \(entry.reason?.rawValue ?? "hinted")"
+    }
+    XCTAssertEqual(
+      recorded,
+      ["0 unhintable-role", "1 unhintable-role", "2 hinted", "2 too-small", "1 offscreen"])
+  }
+
   func testCopyTextPrefersOwnText() {
     let label = MockAxNode(role: .StaticText, attributes: [kAXValueAttribute: "Child"])
     let field = MockAxNode(
