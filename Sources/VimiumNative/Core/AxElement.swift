@@ -340,10 +340,19 @@ final class AxElement {
     self.setup()
   }
 
+  init(_ raw: AxNode, attributes: AxTraversalAttributes) {
+    self.raw = raw
+    self.apply(attributes)
+  }
+
   private func setup() {
     let attributes = BenchUtils.measure("ax: role+position+size+children (batched)") {
       raw.axTraversalAttributes()
     }
+    apply(attributes)
+  }
+
+  private func apply(_ attributes: AxTraversalAttributes) {
     if let role = attributes.role {
       self.role = AxRole.init(rawValue: role)
     }

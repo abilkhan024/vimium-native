@@ -27,6 +27,9 @@ Trigger hint view by pressing `Cmd + Shift + .` which will hint interactive
 elements, which you can click, if some hints overlap you can toggle their
 z-index by pressing `;`
 
+Items of the focused app's menu bar and the status items on the right of
+the menu bar are hinted as well, can be disabled with `hint_menu_bar` option
+
 ### Hints with search
 
 Trigger hint view by pressing default key binding of `Cmd + Shift + .` which
@@ -176,6 +179,10 @@ hint_chars=jklhgasdfweruio
 # but it may slow down rendering, sometimes significantly.
 # P.s HomeRow doesn't do it, that's why it's false by default
 hint_text=false
+
+# Also hint the focused app's menu bar items and the status items on the right
+# of the menu bar
+hint_menu_bar=true
 
 # Rows and cols dimensions when using grid mode.
 # Change is a trade-off between precision and performance

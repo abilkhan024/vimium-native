@@ -189,4 +189,56 @@ final class AxElementTests: XCTestCase {
 
     XCTAssertNil(AxElement(button).getCopyText())
   }
+
+  func testMenuBarScanSkipsPointsInsideFoundItems() {
+    let menuBar = CGRect(x: 0, y: 0, width: 800, height: 24)
+    nonisolated(unsafe) let bar = MockAxNode(role: .MenuBar, frame: menuBar)
+    let apple = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 10, y: 0, width: 34, height: 24))
+    let file = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 43, y: 0, width: 42, height: 24))
+    let status = MockAxNode(role: .Button, frame: CGRect(x: 700, y: 2, width: 24, height: 22))
+    nonisolated(unsafe) let items = [apple, file, status]
+    let lock = NSLock()
+    nonisolated(unsafe) var hits = 0
+
+    let result = MenuBarItems.scan(menuBar) { point in
+      lock.withLock { hits += 1 }
+      return items.first { item in item.frame!.contains(point) } ?? bar
+    }.map { item in item.raw }
+
+    XCTAssertEqual(result.count, 3)
+    XCTAssertTrue(result[0] === apple)
+    XCTAssertTrue(result[1] === file)
+    XCTAssertTrue(result[2] === status)
+    XCTAssertLessThan(hits, Int(menuBar.width / 10))
+  }
+
+  func testMenuBarScanStopsChunkOfUnresponsiveApp() {
+    let menuBar = CGRect(x: 0, y: 0, width: 800, height: 24)
+    let hung = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 20, y: 0, width: 30, height: 24))
+    let after = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 60, y: 0, width: 30, height: 24))
+    let other = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 700, y: 0, width: 30, height: 24))
+    nonisolated(unsafe) let items = [after, other]
+    let hungFrame = hung.frame!
+
+    let result = MenuBarItems.scan(menuBar) { point in
+      if hungFrame.contains(point) { throw MenuBarItems.Unresponsive() }
+      return items.first { item in item.frame!.contains(point) }
+    }.map { item in item.raw }
+
+    XCTAssertEqual(result.count, 1)
+    XCTAssertTrue(result.first === other)
+  }
+
+  func testMenuBarHintsSkipUnhintableItems() {
+    let visible = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 10, y: 0, width: 40, height: 24))
+    let empty = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 60, y: 0, width: 0, height: 24))
+    let items = [visible, empty].map { node in
+      MenuBarItem(raw: node, attributes: node.axTraversalAttributes())
+    }
+
+    let result = MenuBarItems.hints(items)
+
+    XCTAssertEqual(result.count, 1)
+    XCTAssertTrue(result.first?.raw === visible)
+  }
 }

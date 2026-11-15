@@ -9,7 +9,6 @@ class FzFindListener: Listener {
   private var hints: [AxElement] = []
   private var tmp: WindowBuilder?
   private let execQueue = DispatchQueue.global(qos: .userInteractive)
-  private var systemMenuItems: [AxElement] = []
   private var traversalTask: Task<Void, Never>?
   private let mappings = AppOptions.shared.keyMappings
   private var copyMode = false
@@ -88,17 +87,25 @@ class FzFindListener: Listener {
 
     AXUIElementSetAttributeValue(appEl, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
     timeline.mark("set AXEnhancedUserInterface")
+    let menuBar = AppOptions.shared.hintMenuBar ? MenuBarItems.menuBar() : .null
+    let menuBarTask = Task.detached(priority: .userInitiated) {
+      MenuBarItems.fetch(menuBar: menuBar)
+    }
     var winRef: CFTypeRef?
     let winResult = AXUIElementCopyAttributeValue(
       appEl, kAXMainWindowAttribute as CFString, &winRef)
 
     timeline.mark("copy main window")
-    guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
-
-    TraversalRecorder.begin(app: app.localizedName ?? "pid \(pid)")
-    let result = await AxElement(mainWindow).findVisible()
-    timeline.mark("traversal (findVisible)")
-    return result
+    var result: [AxElement] = []
+    // Menu bar is still hinted for apps without windows
+    if winResult == .success, let mainWindow = winRef as! AXUIElement? {
+      TraversalRecorder.begin(app: app.localizedName ?? "pid \(pid)")
+      result = await AxElement(mainWindow).findVisible()
+      timeline.mark("traversal (findVisible)")
+    }
+    let menuBarHints = MenuBarItems.hints(await menuBarTask.value)
+    timeline.mark("menu bar (\(menuBarHints.count) hints)")
+    return result + menuBarHints
   }
 
   private func onClose() {

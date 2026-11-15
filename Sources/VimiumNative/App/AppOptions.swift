@@ -89,6 +89,12 @@ final class AppOptions {
   var hintText = false
 
   // EXAMPLE:
+  //   hint_menu_bar=false
+  // INFO: Also hint the focused app's menu bar items and the status items on
+  // the right of the menu bar
+  var hintMenuBar = true
+
+  // EXAMPLE:
   //   grid_rows=42
   //   grid_cols=48
   //   grid_font_size=12
@@ -310,6 +316,8 @@ final class AppOptions {
         try self.grid.fontSize = parseCgFloat(value: value, field: key)
       case "hint_text":
         try self.hintText = parseBool(value: value, field: key)
+      case "hint_menu_bar":
+        try self.hintMenuBar = parseBool(value: value, field: key)
       case "ax_link_click":
         try self.axLinkClick = parseBool(value: value, field: key)
       case "ignore_empty_depth":
