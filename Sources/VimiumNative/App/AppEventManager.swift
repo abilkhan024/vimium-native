@@ -27,7 +27,12 @@ class AppEventManager {
     }
   }
 
-  static func listen() {
+  /// Returns false if the event tap could not be created
+  @discardableResult
+  static func listen() -> Bool {
+    if eventTap != nil {
+      return true
+    }
     let eventMask = (1 << CGEventType.keyDown.rawValue)
     eventTap = CGEvent.tapCreate(
       tap: .cgSessionEventTap,
@@ -36,6 +41,14 @@ class AppEventManager {
       eventsOfInterest: CGEventMask(eventMask),
       callback: { _, type, event, _ in
 
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+          print("Global event tap was disabled (\(type.rawValue)). Recovering.")
+          if let eventTap = AppEventManager.eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+          }
+          return Unmanaged.passUnretained(event)
+        }
+
         let preserve = Unmanaged.passRetained(event)
         if type != .keyDown {
           return preserve
@@ -43,17 +56,31 @@ class AppEventManager {
 
         for listener in AppEventManager.listeners.reversed() {
           if listener.matches(event) {
+            BenchUtils.tapTime = BenchUtils.now()
             DispatchQueue.main.async {
               listener.callback(event)
 
-              // NSWorkspace.shared.notificationCenter.addObserver(
-              //   forName: NSWorkspace.activeSpaceDidChangeNotification,
-              //   object: nil,
-              //   queue: .main
-              // ) { _ in
-              //   listener.abort()
-              // }
-              var mouseMonitor: Any? = nil
+              nonisolated(unsafe) var mouseMonitor: Any? = nil
+              nonisolated(unsafe) var spaceObserver: NSObjectProtocol? = nil
+              nonisolated(unsafe) let listener = listener
+
+              spaceObserver = NSWorkspace.shared.notificationCenter.addObserver(
+                forName: NSWorkspace.activeSpaceDidChangeNotification,
+                object: nil,
+                queue: .main
+              ) { _ in
+                if let monitor = mouseMonitor {
+                  NSEvent.removeMonitor(monitor)
+                }
+                mouseMonitor = nil
+                if let observer = spaceObserver {
+                  NSWorkspace.shared.notificationCenter.removeObserver(observer)
+                }
+                spaceObserver = nil
+                MainActor.assumeIsolated {
+                  listener.abort()
+                }
+              }
 
               mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [
                 .mouseMoved, .scrollWheel,
@@ -65,6 +92,10 @@ class AppEventManager {
                   NSEvent.removeMonitor(monitor)
                 }
                 mouseMonitor = nil
+                if let observer = spaceObserver {
+                  NSWorkspace.shared.notificationCenter.removeObserver(observer)
+                }
+                spaceObserver = nil
                 listener.abort()
               }
             }
@@ -78,11 +109,13 @@ class AppEventManager {
       userInfo: nil
     )
 
-    if let eventTap = eventTap {
-      let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-      CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
-      CGEvent.tapEnable(tap: eventTap, enable: true)
+    guard let eventTap = eventTap else {
+      return false
     }
+    let runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, .commonModes)
+    CGEvent.tapEnable(tap: eventTap, enable: true)
+    return CGEvent.tapIsEnabled(tap: eventTap)
   }
 
   static func stop() {

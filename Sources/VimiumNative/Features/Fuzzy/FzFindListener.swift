@@ -1,7 +1,6 @@
 import CoreGraphics
 @preconcurrency import SwiftUI
 
-// TODO: Add feature that selects/copies text for text elements
 @MainActor
 class FzFindListener: Listener {
   private let hintsWindow = FzFindWindowManager.get(.hints)
@@ -10,9 +9,9 @@ class FzFindListener: Listener {
   private var hints: [AxElement] = []
   private var tmp: WindowBuilder?
   private let execQueue = DispatchQueue.global(qos: .userInteractive)
-  private var systemMenuItems: [AxElement] = []
   private var traversalTask: Task<Void, Never>?
   private let mappings = AppOptions.shared.keyMappings
+  private var copyMode = false
 
   init() {
     hintsWindow.render(AnyView(FzFindHintsView())).call()
@@ -24,22 +23,35 @@ class FzFindListener: Listener {
 
   func matches(_ event: CGEvent) -> Bool {
     return mappings.showHints.matches(event: event)
+      || mappings.showCopyHints.matches(event: event)
   }
 
   func callback(_ event: CGEvent) {
     if self.appListener != nil {
       return
     }
+    let timeline = BenchTimeline("hints", start: BenchUtils.tapTime)
+    timeline.mark("tap -> main dispatch")
+    BenchUtils.resetTotals()
+
+    copyMode = mappings.showCopyHints.matches(event: event)
     state.search = ""
     InputSourceUtils.selectAbc()
-    hintsWindow.front().hideCursor().call()
+    timeline.mark("selectAbc")
+    hintsWindow.front().call()
+    timeline.mark("window front")
+    hintsWindow.hideCursor().call()
+    timeline.mark("hideCursor")
     state.loading = true
     appListener = AppListener(onEvent: self.onTyping)
     AppEventManager.add(self.appListener!)
+    timeline.mark("loading state + add listener")
+    BenchUtils.afterNextCommit { timeline.mark("first commit (loading)") }
 
     traversalTask = Task { [weak self] in
       guard let self else { return }
-      let hints = await self.getFrontMostClickableHints()
+      timeline.mark("task start")
+      let hints = await self.getFrontMostClickableHints(timeline)
       guard !Task.isCancelled else { return }
 
       var visit = Set<Int>()
@@ -49,25 +61,51 @@ class FzFindListener: Listener {
         visit.insert(point.hashValue)
         return true
       })
+      timeline.mark("dedupe (\(hints.count) -> \(self.hints.count) hints)")
       self.state.hints = self.hints
-      self.state.texts = HintUtils.getLabels(from: self.state.hints.count)
+      let config_val = 2
+      self.state.texts = HintUtils.getLabels(
+        from: max(
+          self.state.hints.count,
+          AppOptions.shared
+            .hintChars.count * config_val + 1))
+      timeline.mark("labels")
       self.state.loading = false
+      timeline.mark("state set")
+      BenchUtils.afterNextCommit {
+        timeline.mark("hints commit (SwiftUI body + layout + CA commit)")
+        BenchUtils.printTotals("hints")
+        TraversalRecorder.flush(hints: self.hints)
+      }
     }
   }
 
-  private func getFrontMostClickableHints() async -> [AxElement] {
+  private func getFrontMostClickableHints(_ timeline: BenchTimeline) async -> [AxElement] {
     guard let app = NSWorkspace.shared.frontmostApplication else { return [] }
     let pid = app.processIdentifier
     let appEl = AXUIElementCreateApplication(pid)
 
     AXUIElementSetAttributeValue(appEl, "AXEnhancedUserInterface" as CFString, kCFBooleanTrue)
+    timeline.mark("set AXEnhancedUserInterface")
+    let menuBar = AppOptions.shared.hintMenuBar ? MenuBarItems.menuBar() : .null
+    let menuBarTask = Task.detached(priority: .userInitiated) {
+      MenuBarItems.fetch(menuBar: menuBar)
+    }
     var winRef: CFTypeRef?
     let winResult = AXUIElementCopyAttributeValue(
       appEl, kAXMainWindowAttribute as CFString, &winRef)
 
-    guard winResult == .success, let mainWindow = winRef as! AXUIElement? else { return [] }
-
-    return await AxElement(mainWindow).findVisible()
+    timeline.mark("copy main window")
+    var result: [AxElement] = []
+    // Menu bar is still hinted for apps without windows
+    if winResult == .success, let mainWindow = winRef as! AXUIElement? {
+      TraversalRecorder.begin(app: app.localizedName ?? "pid \(pid)")
+      result = await AxElement(mainWindow).findVisible()
+      timeline.mark("traversal (findVisible)")
+    }
+    let menuBarHints = MenuBarItems.hints(await menuBarTask.value)
+    timeline.mark("menu bar (\(menuBarHints.count) hints)")
+    return result + menuBarHints
   }
 
   private func onClose() {
@@ -137,9 +175,8 @@ class FzFindListener: Listener {
     },
     mappings.selectOccurence: { event in
       guard self.state.fzfMode else { return true }
-      if self.state.fzfSelectedIdx != -1, let point = self.hints[self.state.fzfSelectedIdx].point {
-        EventUtils.leftClick(point, event.flags)
-        self.onClose()
+      if self.state.fzfSelectedIdx != -1 {
+        self.select(self.hints[self.state.fzfSelectedIdx], event, physicalOnly: true)
       }
       return false
     },
@@ -155,6 +192,16 @@ class FzFindListener: Listener {
 
   // NOTE: Assuming that there will be no usage of conflicting keymappings
   private func onTyping(_ event: CGEvent) {
+    let timeline = BenchTimeline("key", start: BenchUtils.tapTime)
+    timeline.mark("tap -> main dispatch")
+    BenchUtils.resetTotals()
+    defer {
+      timeline.mark("handled")
+      BenchUtils.afterNextCommit {
+        timeline.mark("commit (SwiftUI body + layout + CA commit)")
+        BenchUtils.printTotals("key")
+      }
+    }
     guard
       let bestActionKey = keyToPrimeAction.keys.max(by: { a, b in
         a.getScore(event: event) < b.getScore(event: event)
@@ -184,20 +231,40 @@ class FzFindListener: Listener {
         return onClose()
       }
 
-      if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count,
-        let point = self.hints[idx].point
-      {
-        EventUtils.move(point)
-        if AppOptions.shared.axLinkClick && self.hints[idx].role == .Link {
-          self.hints[idx].click()
-        } else {
-          EventUtils.leftClick(point, event.flags)
-        }
-        onClose()
+      if let idx = self.state.texts.firstIndex(of: state.search), idx < self.hints.count {
+        select(self.hints[idx], event)
       }
       return
     }
 
     let _ = bestAction(event)
+  }
+
+  private func select(_ hint: AxElement, _ event: CGEvent, physicalOnly: Bool = false) {
+    defer { onClose() }
+    if copyMode {
+      if let point = hint.point {
+        EventUtils.move(point)
+      }
+      if let text = hint.getCopyText() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+      } else {
+        print("WARNING: Selected hint has no text to copy")
+      }
+      return
+    }
+
+    guard let point = hint.point else { return }
+    if physicalOnly {
+      EventUtils.leftClick(point, event.flags)
+      return
+    }
+    EventUtils.move(point)
+    if AppOptions.shared.axLinkClick && hint.role == .Link {
+      hint.click()
+    } else {
+      EventUtils.leftClick(point, event.flags)
+    }
   }
 }

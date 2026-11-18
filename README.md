@@ -27,11 +27,20 @@ Trigger hint view by pressing `Cmd + Shift + .` which will hint interactive
 elements, which you can click, if some hints overlap you can toggle their
 z-index by pressing `;`
 
+Items of the focused app's menu bar and the status items on the right of
+the menu bar are hinted as well, can be disabled with `hint_menu_bar` option
+
 ### Hints with search
 
 Trigger hint view by pressing default key binding of `Cmd + Shift + .` which
 will hint interactive elements, press `/` which will enter search mode and start
 typing the text that you want to click, once the hint is focused press enter
+
+### Copy hints
+
+Trigger copy hint view by pressing default key binding of `Cmd + Shift + y`
+which shows the same hints (search with `/` works too), but selecting a hint
+copies its text to the clipboard instead of clicking it
 
 ### Grid & Mouse
 
@@ -87,7 +96,8 @@ brew untap abilkhan024/tools
 # Options
 
 Config file will be read from $HOME/.config/vimium or `$VIMIUM_CONFIG_PATH` if
-it's set
+it's set. If the file doesn't exist, "Edit config" in the menu bar item creates
+an empty one at that path and opens it
 
 Default config:
 
@@ -95,6 +105,7 @@ Default config:
 # Key bindings, format is <Mod>{key} mapping can be found in 
 # `Sources/VimiumNative/Core/KeyMapping.swift` -> `let mappingToValue`
 key_show_hints='<D><S>.'
+key_show_copy_hints='<D><S>y'
 key_show_grid='<D><S>,'
 key_start_scroll='<D><S>j'
 key_close='<Esc>'
@@ -121,8 +132,9 @@ key_reopen_grid_view='/'
 key_right_click='.'
 key_left_click='<CR>'
 
-# Font family used in hints use vimium list-fonts to view all fonts
-font_family=system
+# Font family used in hints, defaults to the system font when not set.
+# Use `vimium list-fonts` to view all fonts
+# font_family=FiraCode Nerd Font Bold
 
 # Letter spacing for hint text
 letter_spacing=0.0
@@ -134,12 +146,12 @@ hint_font_size=14.0
 hint_triangle_height=6.0
 
 # Mouse params when entering grid mode:
-# Color by default
-mouse_color_normal=#ff0000
-# Color when dragging
-mouse_color_visual=#00ffff
-# Color of the outline when in mouse mode
-mouse_outline_color=#00ffff
+# Color by default, defaults to system red when not set
+# mouse_color_normal=#ff0000
+# Color when dragging, defaults to system blue when not set
+# mouse_color_visual=#0000ff
+# Color of the outline when in mouse mode, defaults to system blue when not set
+# mouse_outline_color=#0000ff
 # Hides Outline when set to 0
 mouse_outline_width=8.0
 # Virtual circle cursor size
@@ -149,6 +161,9 @@ mouse_size=10.0
 scroll_size_vertical=5
 scroll_size_horizontal=40
 scroll_size_vertical_page=100
+
+# Scroll animation duration in milliseconds, 0 disables animation
+smooth_scroll_duration=0
 
 # Cursor move size
 cursor_step=5
@@ -164,6 +179,10 @@ hint_chars=jklhgasdfweruio
 # but it may slow down rendering, sometimes significantly.
 # P.s HomeRow doesn't do it, that's why it's false by default
 hint_text=false
+
+# Also hint the focused app's menu bar items and the status items on the right
+# of the menu bar
+hint_menu_bar=true
 
 # Rows and cols dimensions when using grid mode.
 # Change is a trade-off between precision and performance
@@ -197,11 +216,22 @@ small_node_threshold=750
 # but ignores currently held modifiers (like shift, cmd, etc.) so opening link
 # in new tab would be impossible.
 # true by default, set to false if you want a physical click instead
-ax_link_click=false
+ax_link_click=true
 
-# INFO: Color that is used to show borders of element rect defaults to .3 of color_bg
-# set as #00000000 if want to remove it from the view
-hint_border=#00000000
+# Color that is used to show borders of element rect, defaults to .3 opacity
+# of color_bg when not set. Set as #00000000 if want to remove it from the view
+# hint_border=#00000000
+
+# Elements with zero width or height are skipped with their whole subtree, but
+# some apps (e.g. websites) wrap visible elements in them. Up to this many such
+# elements in a row are traversed through instead, they are still never hinted.
+# 0 disables it, higher == slower
+ignore_empty_depth=0
+
+# Development only, prints timings of the hints pipeline to stdout and writes
+# every node visited while looking for hints, along with the reason it was
+# skipped, to /tmp/vimium-traversal-<timestamp>.log. Makes hints noticeably slower
+debug=false
 ```
 
 # Building from source
@@ -234,7 +264,6 @@ rm -rf ./vimium-native-build
 
 - Multiple screen navigation, fzfind works for main screen only _(feel free to
   contribute if that's an issue)_
-- Smooth scrolling _(feel free to contribute if that's an issue)_
 - AeroSpace support. Due to how aerospace manages workspaces, hinting behaviour
   is unstable and unpleasant to work with, instead prefer some manager that
   won't change window sizes and their positions, e.g. custom hammerspon

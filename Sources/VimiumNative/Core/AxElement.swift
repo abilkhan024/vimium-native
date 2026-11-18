@@ -96,6 +96,28 @@ protocol AxNode: AnyObject {
   func axChildren() -> [AxNode]
   func axActionNames() -> [String]
   func axPerformAction(_ action: String) -> Bool
+  // Everything traversal needs per node, ideally in a single round trip
+  func axTraversalAttributes() -> AxTraversalAttributes
+  // DEVELOPMENT ONLY: Any attribute value formatted as text, see TraversalRecorder
+  func axDebugAttributes(_ attributes: [String]) -> [String?]
+}
+
+struct AxTraversalAttributes {
+  var role: String?
+  var position: CGPoint?
+  var size: CGSize?
+  var children: [AxNode] = []
+}
+
+extension AxNode {
+  func axTraversalAttributes() -> AxTraversalAttributes {
+    return AxTraversalAttributes(
+      role: axRole(), position: axPosition(), size: axSize(), children: axChildren())
+  }
+
+  func axDebugAttributes(_ attributes: [String]) -> [String?] {
+    return attributes.map { attribute in axAttributeString(attribute) }
+  }
 }
 
 extension AXUIElement: AxNode {
@@ -149,13 +171,103 @@ extension AXUIElement: AxNode {
   func axPerformAction(_ action: String) -> Bool {
     return AXUIElementPerformAction(self, action as CFString) == .success
   }
+
+  // Each AX call is an IPC round trip to the target app, so fetch all
+  // traversal attributes at once. Missing attributes come back as AXValue
+  // errors in their slot and end up nil
+  func axTraversalAttributes() -> AxTraversalAttributes {
+    let attributes =
+      [
+        kAXRoleAttribute, kAXPositionAttribute, kAXSizeAttribute, kAXChildrenAttribute,
+      ] as CFArray
+    var valuesRef: CFArray?
+    let result = AXUIElementCopyMultipleAttributeValues(
+      self, attributes, AXCopyMultipleAttributeOptions(rawValue: 0), &valuesRef)
+    guard result == .success, let values = valuesRef as? [AnyObject], values.count == 4 else {
+      return AxTraversalAttributes(
+        role: axRole(), position: axPosition(), size: axSize(), children: axChildren())
+    }
+
+    var traversal = AxTraversalAttributes(
+      role: values[0] as? String, children: values[3] as? [AXUIElement] ?? [])
+    var position = CGPoint.zero
+    if let value = AXUIElement.axValue(values[1], .cgPoint),
+      AXValueGetValue(value, .cgPoint, &position)
+    {
+      traversal.position = position
+    }
+    var size = CGSize.zero
+    if let value = AXUIElement.axValue(values[2], .cgSize), AXValueGetValue(value, .cgSize, &size) {
+      traversal.size = size
+    }
+    return traversal
+  }
+
+  func axDebugAttributes(_ attributes: [String]) -> [String?] {
+    var valuesRef: CFArray?
+    let result = AXUIElementCopyMultipleAttributeValues(
+      self, attributes as CFArray, AXCopyMultipleAttributeOptions(rawValue: 0), &valuesRef)
+    guard result == .success, let values = valuesRef as? [AnyObject],
+      values.count == attributes.count
+    else { return attributes.map { _ in nil } }
+    return values.map { value in AXUIElement.debugString(value) }
+  }
+
+  private static func debugString(_ value: AnyObject) -> String? {
+    if CFGetTypeID(value) == AXValueGetTypeID() {
+      // Missing attributes come back as AXValue errors
+      let axValue = value as! AXValue
+      return AXValueGetType(axValue) == .axError ? nil : "\(axValue)"
+    }
+    if CFGetTypeID(value) == CFBooleanGetTypeID() {
+      return CFBooleanGetValue((value as! CFBoolean)) ? "true" : "false"
+    }
+    if CFGetTypeID(value) == AXUIElementGetTypeID() {
+      return "<element>"
+    }
+    if let array = value as? [AnyObject] {
+      return "[" + array.compactMap { debugString($0) }.joined(separator: ", ") + "]"
+    }
+    return "\(value)"
+  }
+
+  private static func axValue(_ value: AnyObject, _ type: AXValueType) -> AXValue? {
+    guard CFGetTypeID(value) == AXValueGetTypeID() else { return nil }
+    let axValue = value as! AXValue
+    return AXValueGetType(axValue) == type ? axValue : nil
+  }
+}
+
+// Why AxElement.findVisible didn't turn a node into a hint, see TraversalRecorder
+enum AxSkipReason: String {
+  // MARK: - Subtree is skipped as well
+  case cycle = "cycle"
+  case noBound = "no-bound"
+  case emptyBound = "empty-bound"
+  case offscreen = "offscreen"
+
+  // MARK: - Only the element itself is skipped
+  case unknownRole = "unknown-role"
+  case tooSmall = "too-small"
+  case unhintableRole = "unhintable-role"
+  case textInsideHintable = "text-inside-hintable"
+  case textWithoutContent = "text-without-content"
+  case outsideWindow = "outside-window"
+  // Bound has no area, but children are traversed, see ignore_empty_depth
+  case emptyTraversed = "empty-traversed"
+  // Hinted, but dropped because another hint has the same point
+  case duplicatePoint = "duplicate-point"
 }
 
 @MainActor
 final class AxElement {
   let raw: AxNode
   lazy var isVisible: Bool = { getIsVisible() }()
-  lazy var isHintable: Bool = { getIsHintable() }()
+  // Empty bound elements in a row ending with this one, see ignore_empty_depth
+  lazy var emptyDepth: Int = {
+    getInvisibleReason() == .emptyBound ? (parents.last?.emptyDepth ?? 0) + 1 : 0
+  }()
+  lazy var isHintable: Bool = { BenchUtils.measure("isHintable") { getIsHintable() } }()
 
   var role: AxRole?
   var size: CGSize?
@@ -228,18 +340,28 @@ final class AxElement {
     self.setup()
   }
 
+  init(_ raw: AxNode, attributes: AxTraversalAttributes) {
+    self.raw = raw
+    self.apply(attributes)
+  }
+
   private func setup() {
-    self.setRole()
-    self.setDimensions()
+    let attributes = BenchUtils.measure("ax: role+position+size+children (batched)") {
+      raw.axTraversalAttributes()
+    }
+    apply(attributes)
   }
 
-  private func setRole() {
-    guard let role = raw.axRole() else { return }
-    self.role = AxRole.init(rawValue: role)
+  private func apply(_ attributes: AxTraversalAttributes) {
+    if let role = attributes.role {
+      self.role = AxRole.init(rawValue: role)
+    }
+    self.setDimensions(position: attributes.position, size: attributes.size)
+    self.children = attributes.children
   }
 
-  private func setDimensions() {
-    guard let point = raw.axPosition(), let size = raw.axSize() else { return }
+  private func setDimensions(position: CGPoint?, size: CGSize?) {
+    guard let point = position, let size = size else { return }
 
     self.size = size
     self.rawPoint = point
@@ -277,6 +399,8 @@ final class AxElement {
     if self.searchTerm != nil {
       return self.searchTerm!
     }
+    let searchTermStart = BenchUtils.now()
+    defer { BenchUtils.add("ax: searchTerm (uncached)", BenchUtils.now() - searchTermStart) }
     if let val = getAttributeString(kAXValueAttribute), !val.isEmpty {
       self.searchTerm = val
     } else if let val = getAttributeString(kAXDescriptionAttribute), !val.isEmpty {
@@ -288,6 +412,41 @@ final class AxElement {
     }
     self.searchTerm = self.searchTerm!.lowercased().replacingOccurrences(of: " ", with: "")
     return self.searchTerm!
+  }
+
+  // Text shown to the user, falls back to the descendants' text since
+  // controls like buttons and links usually render it via StaticText children
+  func getCopyText() -> String? {
+    if let text = AxElement.ownText(raw) {
+      return text
+    }
+    let texts = AxElement.descendantTexts(getChildren(), depth: 8)
+    return texts.isEmpty ? nil : texts.joined(separator: " ")
+  }
+
+  static func ownText(_ node: AxNode) -> String? {
+    let attributes = [kAXValueAttribute, kAXTitleAttribute, kAXDescriptionAttribute]
+    for attribute in attributes {
+      if let text = node.axAttributeString(attribute)?.trimmingCharacters(
+        in: .whitespacesAndNewlines), !text.isEmpty
+      {
+        return text
+      }
+    }
+    return nil
+  }
+
+  private static func descendantTexts(_ nodes: [AxNode], depth: Int) -> [String] {
+    guard depth > 0 else { return [] }
+    var texts: [String] = []
+    for node in nodes {
+      if node.axRole() == AxRole.StaticText.rawValue, let text = ownText(node) {
+        texts.append(text)
+      } else {
+        texts.append(contentsOf: descendantTexts(node.axChildren(), depth: depth - 1))
+      }
+    }
+    return texts
   }
 
   func getAttrs() -> [String?] {
@@ -321,21 +480,26 @@ final class AxElement {
     if let children = self.children {
       return children
     }
-    self.children = raw.axChildren()
+    self.children = BenchUtils.measure("ax: children") { raw.axChildren() }
     return self.children!
   }
 
   func getIsVisible() -> Bool {
-    guard let bound = self.bound else { return false }
+    return getInvisibleReason() == nil
+  }
+
+  // nil when visible, otherwise why the element and its subtree are skipped
+  func getInvisibleReason() -> AxSkipReason? {
+    guard let bound = self.bound else { return .noBound }
     let visible = getRectVisible(bound)
     if !visible {
-      return false
+      return .emptyBound
     }
 
-    guard let parent = parents.last else { return true }
+    guard let parent = parents.last else { return nil }
     let children = parent.getChildren()
     if children.count <= AppOptions.shared.smallNodeThreshold {
-      return true
+      return nil
     }
 
     // TODO: Sometimes too aggressive, find all places then debug
@@ -344,7 +508,7 @@ final class AxElement {
     //   guard let parentBound = parent.bound else { return false }
     //   current = current.intersection(parentBound)
     // }
-    return getRectVisible(bound)
+    return getRectVisible(bound) ? nil : .emptyBound
   }
 
   func normailzeWindowBound(bound: CGRect) -> CGRect {
@@ -365,24 +529,28 @@ final class AxElement {
   // TODO: If element at the position AXUIElementCopyElementAtPosition is not the same element then mark as false
   // POTENTIAL: don't make hint labels sequential instead assign in random order to prevent focused overflow for leetcode (maybe via config flag)
   func getIsHintable() -> Bool {
-    guard let bound = bound, let role = role else {
-      return false
-    }
+    return getUnhintableReason() == nil
+  }
+
+  // nil when hintable, otherwise why the element itself isn't hinted
+  func getUnhintableReason() -> AxSkipReason? {
+    guard let bound = bound else { return .noBound }
+    guard let role = role else { return .unknownRole }
 
     if getRectHidden(bound) {
-      return false
+      return .tooSmall
     }
 
     if AxElement.UNHINTABLE_ROLES.contains(role) {
-      return false
+      return .unhintableRole
     }
 
     if role == .StaticText && parents.contains(where: { el in el.getIsHintable() }) {
-      return false
+      return .textInsideHintable
     }
 
     if role == .StaticText && AppOptions.shared.hintText {
-      return hasContent()
+      return hasContent() ? nil : .textWithoutContent
     }
 
     let bounds =
@@ -401,14 +569,52 @@ final class AxElement {
       current = current.intersection(parentBound!)
     }
 
-    return getRectVisible(current)
+    return getRectVisible(current) ? nil : .outsideWindow
+  }
+
+  // nil when children should be traversed, otherwise why the element and its
+  // whole subtree are skipped
+  func getPruneReason() -> AxSkipReason? {
+    if parents.contains(where: { parent in parent.raw === self.raw }) {
+      return .cycle
+    }
+    if !isVisible {
+      let reason = getInvisibleReason() ?? .emptyBound
+      if reason == .emptyBound && emptyDepth <= AppOptions.shared.ignoreEmptyDepth {
+        return nil
+      }
+      return reason
+    }
+    // Element itself can't be hinted outside the window (see getIsHintable),
+    // and its subtree is assumed to stay within its bound, so skip it whole
+    if let window = parents.first?.bound, let bound, !bound.intersects(window) {
+      return .offscreen
+    }
+    return nil
+  }
+
+  // nil when hinted, otherwise why not, mirrors findVisible
+  func getSkipReason() -> AxSkipReason? {
+    if let reason = getPruneReason() { return reason }
+    if isHintable { return nil }
+    return isVisible ? getUnhintableReason() : .emptyTraversed
   }
 
   func findVisible() async -> [AxElement] {
+    let yieldStart = BenchUtils.now()
     await Task.yield()
+    BenchUtils.add("Task.yield (main busy elsewhere)", BenchUtils.now() - yieldStart)
     if Task.isCancelled { return [] }
-    guard !self.parents.contains(where: { parent in parent.raw === self.raw }) else { return [] }
-    guard isVisible else { return [] }
+    if let reason = getPruneReason() {
+      if reason == .offscreen {
+        BenchUtils.count("pruned offscreen subtrees")
+        BenchUtils.count("pruned offscreen direct children", by: getChildren().count)
+      }
+      TraversalRecorder.record(self, reason)
+      return []
+    }
+    // Recorded before the children so the log keeps the tree order
+    TraversalRecorder.record(self, getSkipReason())
 
     var childList: [AxElement] = []
     for child in getChildren() {

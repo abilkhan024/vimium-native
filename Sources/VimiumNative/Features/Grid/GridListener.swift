@@ -127,10 +127,10 @@ class GridListener: Listener {
       self.scrollRelative(offsetY: -self.scrollSize.verticalPage * (Int(self.digits) ?? 1))
     },
     mappings.scrollFullDown: { _ in
-      self.scrollRelative(offsetY: self.maxScroll)
+      self.scrollRelative(offsetY: self.maxScroll, smooth: false)
     },
     mappings.scrollFullUp: { _ in
-      self.scrollRelative(offsetY: -self.maxScroll)
+      self.scrollRelative(offsetY: -self.maxScroll, smooth: false)
     },
     mappings.enterVisual: { _ in
       self.mouseState.dragging.toggle()
@@ -273,10 +273,14 @@ class GridListener: Listener {
     }
   }
 
-  private func scrollRelative(offsetX: Int = 0, offsetY: Int = 0) {
-    let deltaY = Int32(offsetY * -1)
-    let deltaX = Int32(offsetX * -1)
-    EventUtils.scroll(deltaY: deltaY, deltaX: deltaX)
+  private func scrollRelative(offsetX: Int = 0, offsetY: Int = 0, smooth: Bool = true) {
+    if smooth {
+      SmoothScroller.shared.scroll(deltaY: -offsetY, deltaX: -offsetX)
+    } else {
+      // Jumping to the edge, pending animation would only fight it
+      SmoothScroller.shared.stop()
+      EventUtils.scroll(deltaY: Int32(-offsetY), deltaX: Int32(-offsetX))
+    }
     digits = ""
   }
 

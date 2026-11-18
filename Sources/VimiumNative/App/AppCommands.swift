@@ -85,7 +85,16 @@ final class AppCommands {
   }
 
   @objc private func editConfig() {
-    NSWorkspace.shared.open(URL(fileURLWithPath: AppOptions.shared.getConfigPath().path))
+    let path = AppOptions.shared.getConfigPath().path
+    if !fs.fileExists(atPath: path) {
+      do {
+        try AppOptions.shared.createDefaultConfig(path: path)
+      } catch {
+        print("Failed to create default config at '\(path)': \(error)")
+        return
+      }
+    }
+    NSWorkspace.shared.open(URL(fileURLWithPath: path))
   }
 
   private func setupAndRun() {

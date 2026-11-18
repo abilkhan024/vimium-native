@@ -55,6 +55,11 @@ final class AppOptions {
   var scrollSize = (vertical: 5, horizontal: 40, verticalPage: 100)
 
   // EXAMPLE:
+  //   smooth_scroll_duration=150
+  // INFO: Scroll animation duration in milliseconds, 0 disables animation
+  var smoothScrollDuration = 0
+
+  // EXAMPLE:
   //   cursor_step=20
   // INFO: Cursor move size
   var cursorStep = 5
@@ -82,6 +87,12 @@ final class AppOptions {
   // text nodes, but it may slowdown rendering, sometimes significantly
   // P.s HomeRow doesn't do it, that's why it's false by default
   var hintText = false
+
+  // EXAMPLE:
+  //   hint_menu_bar=false
+  // INFO: Also hint the focused app's menu bar items and the status items on
+  // the right of the menu bar
+  var hintMenuBar = true
 
   // EXAMPLE:
   //   grid_rows=42
@@ -129,8 +140,24 @@ final class AppOptions {
   // (like shift, cmd, etc.) so opening link in new tab would be impossible
   var axLinkClick = true
 
+  // EXAMPLE:
+  //   ignore_empty_depth=1
+  // NOTE: Elements with zero width or height are skipped with their whole
+  // subtree, but some apps (e.g. websites) wrap visible elements in them. Up
+  // to this many such elements in a row are traversed through instead, they
+  // are still never hinted. 0 disables it, higher == slower
+  var ignoreEmptyDepth = 0
+
+  // EXAMPLE:
+  //   debug=true
+  // NOTE: Development only, prints timings of the hints pipeline to stdout and
+  // records every node visited by the hints traversal with the reason it was
+  // skipped, see TraversalRecorder. Makes hints noticeably slower
+  var debug = false
+
   var keyMappings = (
     showHints: KeyMapping(key: .dot, modifiers: [.command, .shift]),
+    showCopyHints: KeyMapping(key: .y, modifiers: [.command, .shift]),
     showGrid: KeyMapping(key: .comma, modifiers: [.command, .shift]),
     startScroll: KeyMapping(key: .j, modifiers: [.command, .shift]),
     close: KeyMapping(key: .esc),
@@ -260,6 +287,8 @@ final class AppOptions {
       case "scroll_size_vertical_page":
         try self.scrollSize.verticalPage = parseInt(
           value: value, field: key)
+      case "smooth_scroll_duration":
+        try self.smoothScrollDuration = parseInt(value: value, field: key)
       case "scroll_size_horizontal":
         try self.scrollSize.horizontal = parseInt(value: value, field: key)
       case "jiggle_when_dragging":
@@ -287,12 +316,21 @@ final class AppOptions {
         try self.grid.fontSize = parseCgFloat(value: value, field: key)
       case "hint_text":
         try self.hintText = parseBool(value: value, field: key)
+      case "hint_menu_bar":
+        try self.hintMenuBar = parseBool(value: value, field: key)
       case "ax_link_click":
         try self.axLinkClick = parseBool(value: value, field: key)
+      case "ignore_empty_depth":
+        try self.ignoreEmptyDepth = parseInt(value: value, field: key)
+      case "debug":
+        try self.debug = parseBool(value: value, field: key)
       case "hint_border":
         try self.hintBorder = parseColor(from: value, field: key)
       case "key_show_hints":
         try self.keyMappings.showHints = parseKeyMapping(
+          from: value, field: key, flags: [.requireModifiers])
+      case "key_show_copy_hints":
+        try self.keyMappings.showCopyHints = parseKeyMapping(
           from: value, field: key, flags: [.requireModifiers])
       case "key_show_grid":
         try self.keyMappings.showGrid = parseKeyMapping(
@@ -421,6 +459,20 @@ final class AppOptions {
       print("Error reading config file: \(error)")
       exit(1)
     }
+  }
+
+  private static let defaultConfig = """
+    # All options and their default values:
+    # https://github.com/abilkhan024/vimium-native#options
+
+    """
+
+  func createDefaultConfig(path: String) throws {
+    let url = URL(fileURLWithPath: path)
+    try FileManager.default.createDirectory(
+      at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+    try Self.defaultConfig.write(to: url, atomically: true, encoding: .utf8)
+    print("Created default config at '\(path)'")
   }
 
   func getConfigPath() -> (path: String, message: String) {

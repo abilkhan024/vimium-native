@@ -43,6 +43,24 @@ final class AxElementTests: XCTestCase {
     XCTAssertEqual(result.first?.role, .Button)
   }
 
+  func testOffscreenSubtreeIsPruned() async {
+    // Child of the offscreen group is inside the window on purpose, it's
+    // skipped anyway because the subtree is assumed to stay within its parent
+    let innerButton = MockAxNode(role: .Button, frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+    let offscreenGroup = MockAxNode(
+      role: .Group, frame: CGRect(x: 0, y: 500, width: 100, height: 100), children: [innerButton])
+    let partialButton = MockAxNode(
+      role: .Button, frame: CGRect(x: 190, y: 50, width: 20, height: 20))
+    let window = MockAxNode(
+      role: .Window, frame: CGRect(x: 0, y: 0, width: 200, height: 200),
+      children: [offscreenGroup, partialButton])
+
+    let result = await AxElement(window).findVisible()
+
+    XCTAssertEqual(result.count, 1)
+    XCTAssertEqual(result.first?.bound?.minX, 190)
+  }
+
   func testStaticTextNestedInHintableParentIsExcluded() async {
     let label = MockAxNode(
       role: .StaticText, frame: CGRect(x: 0, y: 0, width: 10, height: 10),
@@ -100,5 +118,127 @@ final class AxElementTests: XCTestCase {
     let result = await task.value
 
     XCTAssertTrue(result.isEmpty)
+  }
+
+  func testIgnoreEmptyDepthTraversesEmptyElementsInARow() async {
+    defer { AppOptions.shared.ignoreEmptyDepth = 0 }
+
+    // Zero width wrappers whose content is laid out elsewhere, like the chat
+    // column on twitch
+    let button = MockAxNode(role: .Button, frame: CGRect(x: 10, y: 10, width: 20, height: 20))
+    let inner = MockAxNode(
+      role: .Group, frame: CGRect(x: 200, y: 0, width: 0, height: 100), children: [button])
+    let outer = MockAxNode(
+      role: .Group, frame: CGRect(x: 200, y: 0, width: 0, height: 100), children: [inner])
+    let window = MockAxNode(
+      role: .Window, frame: CGRect(x: 0, y: 0, width: 200, height: 200), children: [outer])
+
+    var hintCounts: [Int] = []
+    for depth in 0...2 {
+      AppOptions.shared.ignoreEmptyDepth = depth
+      hintCounts.append(await AxElement(window).findVisible().count)
+    }
+
+    XCTAssertEqual(hintCounts, [0, 0, 1])
+  }
+
+  func testRecorderKeepsTreeOrderAndSkipReasons() async {
+    AppOptions.shared.debug = true
+    defer { AppOptions.shared.debug = false }
+
+    let button = MockAxNode(role: .Button, frame: CGRect(x: 0, y: 0, width: 20, height: 20))
+    let tiny = MockAxNode(role: .Button, frame: CGRect(x: 0, y: 0, width: 1, height: 20))
+    let group = MockAxNode(
+      role: .Group, frame: CGRect(x: 0, y: 0, width: 100, height: 100), children: [button, tiny])
+    let offscreen = MockAxNode(role: .Group, frame: CGRect(x: 0, y: 500, width: 100, height: 100))
+    let window = MockAxNode(
+      role: .Window, frame: CGRect(x: 0, y: 0, width: 200, height: 200),
+      children: [group, offscreen])
+
+    TraversalRecorder.begin(app: "test")
+    _ = await AxElement(window).findVisible()
+
+    let recorded = TraversalRecorder.entries.map { entry in
+      "\(entry.depth) \(entry.reason?.rawValue ?? "hinted")"
+    }
+    XCTAssertEqual(
+      recorded,
+      ["0 unhintable-role", "1 unhintable-role", "2 hinted", "2 too-small", "1 offscreen"])
+  }
+
+  func testCopyTextPrefersOwnText() {
+    let label = MockAxNode(role: .StaticText, attributes: [kAXValueAttribute: "Child"])
+    let field = MockAxNode(
+      role: .TextField, children: [label], attributes: [kAXValueAttribute: "  Own value \n"])
+
+    XCTAssertEqual(AxElement(field).getCopyText(), "Own value")
+  }
+
+  func testCopyTextFallsBackToDescendantText() {
+    let first = MockAxNode(role: .StaticText, attributes: [kAXValueAttribute: "Sign"])
+    let second = MockAxNode(role: .StaticText, attributes: [kAXTitleAttribute: "in"])
+    let group = MockAxNode(role: .Group, children: [second])
+    let button = MockAxNode(role: .Button, children: [first, group])
+
+    XCTAssertEqual(AxElement(button).getCopyText(), "Sign in")
+  }
+
+  func testCopyTextIsNilWithoutText() {
+    let image = MockAxNode(role: .Image)
+    let button = MockAxNode(role: .Button, children: [image])
+
+    XCTAssertNil(AxElement(button).getCopyText())
+  }
+
+  func testMenuBarScanSkipsPointsInsideFoundItems() {
+    let menuBar = CGRect(x: 0, y: 0, width: 800, height: 24)
+    nonisolated(unsafe) let bar = MockAxNode(role: .MenuBar, frame: menuBar)
+    let apple = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 10, y: 0, width: 34, height: 24))
+    let file = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 43, y: 0, width: 42, height: 24))
+    let status = MockAxNode(role: .Button, frame: CGRect(x: 700, y: 2, width: 24, height: 22))
+    nonisolated(unsafe) let items = [apple, file, status]
+    let lock = NSLock()
+    nonisolated(unsafe) var hits = 0
+
+    let result = MenuBarItems.scan(menuBar) { point in
+      lock.withLock { hits += 1 }
+      return items.first { item in item.frame!.contains(point) } ?? bar
+    }.map { item in item.raw }
+
+    XCTAssertEqual(result.count, 3)
+    XCTAssertTrue(result[0] === apple)
+    XCTAssertTrue(result[1] === file)
+    XCTAssertTrue(result[2] === status)
+    XCTAssertLessThan(hits, Int(menuBar.width / 10))
+  }
+
+  func testMenuBarScanStopsChunkOfUnresponsiveApp() {
+    let menuBar = CGRect(x: 0, y: 0, width: 800, height: 24)
+    let hung = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 20, y: 0, width: 30, height: 24))
+    let after = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 60, y: 0, width: 30, height: 24))
+    let other = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 700, y: 0, width: 30, height: 24))
+    nonisolated(unsafe) let items = [after, other]
+    let hungFrame = hung.frame!
+
+    let result = MenuBarItems.scan(menuBar) { point in
+      if hungFrame.contains(point) { throw MenuBarItems.Unresponsive() }
+      return items.first { item in item.frame!.contains(point) }
+    }.map { item in item.raw }
+
+    XCTAssertEqual(result.count, 1)
+    XCTAssertTrue(result.first === other)
+  }
+
+  func testMenuBarHintsSkipUnhintableItems() {
+    let visible = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 10, y: 0, width: 40, height: 24))
+    let empty = MockAxNode(role: .MenuBarItem, frame: CGRect(x: 60, y: 0, width: 0, height: 24))
+    let items = [visible, empty].map { node in
+      MenuBarItem(raw: node, attributes: node.axTraversalAttributes())
+    }
+
+    let result = MenuBarItems.hints(items)
+
+    XCTAssertEqual(result.count, 1)
+    XCTAssertTrue(result.first?.raw === visible)
   }
 }
